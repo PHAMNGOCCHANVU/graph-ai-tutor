@@ -31,7 +31,7 @@ Backend (FastAPI, Python)
 1. Clone repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/PHAMNGOCCHANVU/graph-ai-tutor.git
 cd graph-ai-tutor
 ```
 
