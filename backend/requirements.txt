@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+langchain
+langchain-google-genai
+chromadb
+python-multipart
+python-dotenv

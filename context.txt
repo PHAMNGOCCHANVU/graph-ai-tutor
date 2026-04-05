@@ -1,0 +1,23 @@
+DỰ ÁN: GRAPH AI TUTOR (MINH HỌA THUẬT TOÁN ĐỒ THỊ TÍCH HỢP RAG)
+
+1. Mục tiêu: Xây dựng ứng dụng web giáo dục giúp người dùng học thuật toán đồ thị thông qua việc minh họa trực quan từng bước (Visualization) kết hợp trợ lý AI giải thích thông minh (RAG).
+
+2. Kiến trúc & Công nghệ:
+   - Frontend: Next.js 15 (App Router), TypeScript, Tailwind CSS.
+     + Thư viện chính: Cytoscape.js (vẽ đồ thị), Axios (gọi API), Lucide React (icon).
+     + Cấu trúc: src/ (components, hooks, services, types).
+   - Backend: FastAPI (Python 3.12).
+     + Database: SQLAlchemy (SQL - lưu cấu trúc đồ thị & snapshot), ChromaDB (Vector DB - lưu tri thức thuật toán).
+     + AI: Gemini API kết hợp RAG (Retrieval-Augmented Generation).
+   - Luồng dữ liệu: Frontend <-> FastAPI <-> SQL/ChromaDB/Gemini.
+
+3. Tính năng cốt lõi:
+   - Vẽ/chỉnh sửa đồ thị tương tác.
+   - Chạy thuật toán từng bước (Next/Back step) sử dụng cơ chế Snapshot để quản lý trạng thái.
+   - Trợ lý AI giải thích bối cảnh: Khi người dùng ở một bước thuật toán cụ thể, AI sẽ truy xuất dữ liệu snapshot đó và tài liệu lý thuyết từ Vector DB để giải thích lý do thực hiện bước đó.
+   - Chatbot hỏi đáp theo ngữ cảnh thuật toán đang chạy.
+
+4. Quy định kỹ thuật:
+   - Backend sử dụng môi trường ảo (.venv).
+   - Frontend tuân thủ quy tắc Component-based và Type-safe.
+   - Kết nối giữa hai bên qua REST API.

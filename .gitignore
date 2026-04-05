@@ -1,0 +1,95 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# ------------------------------
+# Environment / secrets
+# ------------------------------
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# ------------------------------
+# Python
+# ------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.pyo
+
+.python-version
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+
+dist/
+build/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ------------------------------
+# Node / Next.js
+# ------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel/
+frontend/.turbo/
+frontend/coverage/
+frontend/*.tsbuildinfo
+
+# ------------------------------
+# Runtime data / logs
+# ------------------------------
+*.log
+logs/
+tmp/
+temp/
+
+# Local databases / vector stores
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.chroma/
+chroma/
+chroma_db/
+
+# Application-generated local data
+backend/data/
+
+# ------------------------------
+# Optional large assets
+# ------------------------------
+*.pt
+*.pth
+*.onnx
+*.bin
