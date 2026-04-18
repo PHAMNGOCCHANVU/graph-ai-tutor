@@ -93,5 +93,3 @@ backend/data/
 *.pth
 *.onnx
 *.bin
-
-/*.txt
