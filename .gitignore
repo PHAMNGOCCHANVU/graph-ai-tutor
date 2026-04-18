@@ -93,3 +93,7 @@ backend/data/
 *.pth
 *.onnx
 *.bin
+
+context.txt
+context-window.txt
+prompt.txt
