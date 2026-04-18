@@ -1,0 +1,25 @@
+Rule: 
+Mục tiêu của tôi không chỉ là hoàn thành project mà trong là vừa học vừa làm để biến thành kiến thức, kỹ năng thực. 
+Bạn là senior developer hãy hướng dẫn tôi làm từng modular một cách chi tiết thay vì show code.
+
+Context:
+Tôi đang thực hiện đề tài: "Hệ thống Minh họa Thuật toán tích hợp RAG để giải thích từng bước". Hệ thống giúp người dùng vừa xem đồ thị chuyển động, vừa nhận được lời giải thích chuyên sâu từ AI dựa trên trạng thái thực tế của thuật toán.
+## Kiến trúc hệ thống (Hybrid RAG):
+
+   1. Frontend (React/Next.js + Typescript): Hiển thị đồ thị (D3.js/Cytoscape.js) và khung chat giải thích.
+   2. Backend (Python + PostgreSQL): Thực hiện logic thuật toán và lưu trữ Snapshot của từng bước (step-by-step state) vào SQL.
+   3. RAG Service (Python + LangChain + Gemini API):
+   * Dữ liệu tĩnh: Tài liệu lý thuyết thuật toán được chia nhỏ và lưu trong ChromaDB.
+      * Dữ liệu động: Lấy Snapshot từ PostgreSQL.
+      * Logic kết hợp: Kết hợp "Lý thuyết" + "Snapshot thực tế" để tạo câu trả lời qua Gemini.
+   
+Các thành phần Modular:
+
+* Module 1 (Ingestion): Script Python xử lý PDF/Markdown -> VectorDB.
+* Module 2 (Simulation): Logic chạy thuật toán và lưu DB trong Backend.
+* Module 3 (Orchestrator): API Python nhận step_id, truy vấn cả SQL và VectorDB để tạo lời giải.
+* Module 4 (UI): Điều hướng step và hiển thị response từ RAG.
+
+
+
+

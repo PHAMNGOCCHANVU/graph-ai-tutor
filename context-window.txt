@@ -1,0 +1,36 @@
+1. Luồng chạy của một Request (End-to-End Flow)
+Hãy tưởng tượng người dùng đang ở bước 5 của thuật toán Dijkstra và nhấn nút Giải thích:
+Frontend (React/Next.js):
+Component GraphCanvas giữ trạng thái đồ thị.
+Khi nhấn nút, một hàm trong src/services/aiService.ts sẽ được gọi.
+Nó gửi một yêu cầu (POST Request) kèm theo Graph Data và Step Index hiện tại đến Backend.
+Backend API (FastAPI):
+app/main.py tiếp nhận request và chuyển hướng đến Router tương ứng trong app/api/.
+Backend sẽ gọi app/services/rag_query.py để xử lý logic AI.
+Xử lý RAG (Trí tuệ nhân tạo):
+Hệ thống lấy dữ liệu thuật toán từ SQL (app/models/).
+Nó truy xuất tài liệu lý thuyết liên quan từ Vector DB (ChromaDB).
+Tất cả được đóng gói thành một Prompt gửi cho AI (Gemini).
+Phản hồi (Response):
+AI trả về câu chữ giải thích.
+Backend gửi dữ liệu này về Frontend dưới dạng JSON.
+Frontend nhận dữ liệu, src/components/chat/ChatBox.tsx sẽ hiển thị lời giải thích đó lên màn hình.
+
+2. Vai trò của từng thư mục (Dành cho Team)
+Nên copy phần này vào file AGENTS.md để team hiểu nhiệm vụ:
+📂 Backend (Trái tim logic)
+api/: Định nghĩa các "cửa ngõ" (Endpoints). Team chỉ viết logic nhận/trả dữ liệu ở đây.
+models/: Định nghĩa cấu trúc Database (Bảng Đồ thị, Bảng Snapshot).
+services/algorithm.py: Chứa code chạy Dijkstra, BFS, DFS.
+services/rag_query.py: Chứa logic kết nối Gemini và RAG.
+📂 Frontend (Giao diện & Tương tác)
+components/graph/: Chuyên trách việc vẽ và điều khiển Cytoscape.
+hooks/: Chứa các "bộ não" của giao diện (ví dụ: useAlgorithm để quản lý trạng thái Next/Back step).
+services/: Nơi duy nhất được quyền dùng axios để nói chuyện với Backend. Không được gọi API lung tung ở các file Component.
+types/: "Từ điển" chung. Nếu Backend trả về một Node, Frontend phải định nghĩa Node đó trông như thế nào ở đây để tránh lỗi.
+
+💡 Lời khuyên cho Nhóm trưởng:
+File .env: File này đang nằm ở thư mục gốc backend/. Hãy nhắc team tạo một file tương tự ở frontend/ để lưu NEXT_PUBLIC_API_URL.
+Sự đồng bộ: Nếu thay đổi một cột trong backend/models/, hãy nhớ cập nhật lại frontend/types/. Nếu không, Frontend sẽ bị "gãy" vì không hiểu dữ liệu mới.
+
+
