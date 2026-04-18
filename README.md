@@ -39,7 +39,7 @@ cd graph-ai-tutor
 
 ```bash
 cd backend
-py -3.12 -m venv .venv
+python3.12 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
