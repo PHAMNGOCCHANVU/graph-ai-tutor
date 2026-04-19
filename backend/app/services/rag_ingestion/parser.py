@@ -118,6 +118,9 @@ def build_chunk_records(
         text_chunks = fallback_splitter.split_text(clean_section)
 
         for text_chunk in text_chunks:
+            if not text_chunk or not text_chunk.strip():
+                continue
+
             metadata: dict[str, Any] = {
                 "source_path": rel_source,
                 "heading_path": heading_path,

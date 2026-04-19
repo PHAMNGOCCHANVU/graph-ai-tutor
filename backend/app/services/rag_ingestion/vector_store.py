@@ -4,10 +4,25 @@ import os
 from typing import Any
 
 from langchain_classic.indexes import SQLRecordManager, index
+from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
+
+
+class SafeGeminiEmbeddings:
+    def __init__(self, model: str) -> None:
+        self._base = GoogleGenerativeAIEmbeddings(model=model)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._base.embed_query(text)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        vectors: list[list[float]] = []
+        for text in texts:
+            # Ensure one embedding vector per non-empty input text.
+            vectors.append(self._base.embed_query(text))
+        return vectors
 
 
 class IngestionVectorStore:
@@ -21,7 +36,7 @@ class IngestionVectorStore:
     ) -> None:
         self._collection_name = collection_name
         self._chroma_dir = chroma_dir
-        self._embedder = GoogleGenerativeAIEmbeddings(model=embedding_model)
+        self._embedder = SafeGeminiEmbeddings(model=embedding_model)
         self._vector_store = Chroma(
             collection_name=collection_name,
             embedding_function=self._embedder,
@@ -61,9 +76,17 @@ class IngestionVectorStore:
             raise ValueError("batch_size must be > 0")
         if cleanup not in {None, "incremental", "full", "scoped_full"}:
             raise ValueError("cleanup must be one of: None, incremental, full, scoped_full")
+        safe_documents = [doc for doc in documents if doc.page_content and doc.page_content.strip()]
+        if not safe_documents:
+            return {
+                "num_added": 0,
+                "num_deleted": 0,
+                "num_skipped": 0,
+                "num_updated": 0,
+            }
 
-        self._index_with_retry(
-            documents=documents,
+        return self._index_with_retry(
+            documents=safe_documents,
             batch_size=batch_size,
             cleanup=cleanup,
             source_id_key=source_id_key,

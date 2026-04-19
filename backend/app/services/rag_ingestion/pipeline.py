@@ -62,6 +62,9 @@ def run_ingestion(
             continue
 
         for chunk_id, text_chunk, metadata in records:
+            if not text_chunk or not text_chunk.strip():
+                continue
+
             doc_metadata = dict(metadata)
             doc_metadata["chunk_id"] = chunk_id
             all_documents.append(Document(page_content=text_chunk, metadata=doc_metadata))
