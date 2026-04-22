@@ -3,13 +3,26 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Bổ sung màu sắc theo VisuAlgo */
+  --visualgo-sorting: #4caf50;      /* Xanh lá */
+  --visualgo-list: #1976d2;         /* Xanh dương */
+  --visualgo-graph: #ff9800;        /* Cam */
+  --visualgo-tree: #00bcd4;         /* Xanh cyan */
+  --visualgo-primary-pink: #e91e63; /* Màu của nút 'Đào tạo' */
 }
+
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Đăng ký các màu mới vào Tailwind */
+  --color-sorting: var(--visualgo-sorting);
+  --color-list: var(--visualgo-list);
+  --color-graph: var(--visualgo-graph);
+  --color-tree: var(--visualgo-tree);
+  --color-pink-visualgo: var(--visualgo-primary-pink);
 }
 
 @media (prefers-color-scheme: dark) {
