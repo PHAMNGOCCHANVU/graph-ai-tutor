@@ -1,103 +1,121 @@
+import heapq
+import uuid
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models import models
-import math
-from app.services.algorithms import save_snapshot, get_graph 
-
-def save_graph(db: Session, name: str, data: dict):
-    db_graph = models.Graph(name=name, data_json=data)
-    db.add(db_graph)
-    db.commit()
-    db.refresh(db_graph)
-    return db_graph
 
 def get_graph(db: Session, graph_id: int):
     return db.query(models.Graph).filter(models.Graph.graph_id == graph_id).first()
 
-def save_snapshot(db: Session, graph_id: int, step_id: int, step_data: dict, explanation: str):
+def _save_snapshot(db: Session, session_id: str, step_index: int, graph_id: int, 
+                   phase_id: str, current_node: str, visited: list, distances: dict, 
+                   pq: list, description: str):
+    """
+    Hàm phụ trợ để đóng gói và lưu 1 Snapshot vào Database
+    """
+    # Ép kiểu queue theo đúng chuẩn hợp đồng (Contract): dist:node
+    queue_state = [f"{dist}:{node}" for dist, node in pq]
+    
+    step_data = {
+        "phase_id": phase_id,
+        "current_node": current_node,
+        "visited": visited.copy(),
+        "distances": distances.copy(),
+        "queue": queue_state
+    }
+    
     new_state = models.ExecutionState(
+        session_id=session_id,
+        step_index=step_index,
         graph_id=graph_id,
-        algo_step_id=step_id,
         step_data_json=step_data,
-        explanation=explanation
+        description=description
     )
     db.add(new_state)
-    db.commit()
-    db.refresh(new_state)
     return new_state
 
-def get_previous_state(db: Session, current_state_id: int, graph_id: int):
+def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
     """
-    Logic phục vụ Back Step: Tìm snapshot có ID nhỏ hơn gần nhất của đồ thị này
+    Chạy thuật toán Dijkstra từ đầu đến cuối và lưu lại toàn bộ các bước vào Database.
     """
-    return db.query(models.ExecutionState)\
-             .filter(models.ExecutionState.graph_id == graph_id)\
-             .filter(models.ExecutionState.state_id < current_state_id)\
-             .order_by(models.ExecutionState.state_id.desc())\
-             .first()
-
-
-def run_dijkstra(db: Session, graph_id: int, start_node: str):
-    """
-    Thực thi thuật toán Dijkstra và lưu lại từng bước (Snapshot) vào Database
-    """
-    # 1. Lấy dữ liệu đồ thị từ DB
     graph = get_graph(db, graph_id)
     if not graph:
         return {"error": "Không tìm thấy đồ thị"}
-    
-    # Giả sử cấu trúc data_json của đồ thị lưu có dạng:
-    # {"nodes": ["A", "B", "C"], "edges": [{"source": "A", "target": "B", "weight": 5}, ...]}
-    graph_data = graph.data_json
-    nodes = graph_data.get("nodes", [])
-    edges = graph_data.get("edges", [])
-
-    # (Tùy chọn) Tìm hoặc tạo ID cho thuật toán Dijkstra trong bảng AlgorithmStep
-    algo_step = db.query(models.AlgorithmStep).filter(models.AlgorithmStep.algo_name == "Dijkstra").first()
-    algo_id = algo_step.algo_step_id if algo_step else 1
-
-    # 2. KHỞI TẠO DIJKSTRA
-    distances = {node: math.inf for node in nodes}
-    distances[start_node] = 0
-    visited = []
-    
-    # [LƯU SNAPSHOT BƯỚC 1] - Khởi tạo
-    step_order = 1
-    save_snapshot(
-        db=db, 
-        graph_id=graph_id, 
-        step_id=algo_id, 
-        step_data={"distances": distances, "visited": visited, "current_node": None}, 
-        explanation=f"Khởi tạo khoảng cách từ đỉnh {start_node} là 0, các đỉnh khác là vô cực."
-    )
-
-    # 3. VÒNG LẶP DIJKSTRA CHÍNH
-    unvisited_nodes = list(nodes)
-    
-    while unvisited_nodes:
-        # Tìm đỉnh có khoảng cách nhỏ nhất
-        current_node = min(unvisited_nodes, key=lambda node: distances[node])
         
-        if distances[current_node] == math.inf:
-            break # Các đỉnh còn lại không thể đi tới
+    # 1. TẠO SESSION MỚI (Mỗi lần chạy là 1 session duy nhất)
+    session_id = f"sess-{uuid.uuid4().hex[:8]}"
+    db_session = models.AlgoSession(
+        session_id=session_id,
+        graph_id=graph_id,
+        algo_name="Dijkstra"
+    )
+    db.add(db_session)
+    db.commit() # Lưu session trước để lấy khóa ngoại cho Snapshot
+
+    # 2. XỬ LÝ DỮ LIỆU ĐẦU VÀO (Parse Graph JSON)
+    graph_data = graph.data_json
+    nodes = [str(n) for n in graph_data.get("nodes", [])]
+    edges = graph_data.get("edges", [])
+    
+    # Tạo danh sách kề (Adjacency List)
+    adj = {node: [] for node in nodes}
+    for edge in edges:
+        u, v, w = str(edge["source"]), str(edge["target"]), float(edge["weight"])
+        if u in adj: adj[u].append((v, w))
+        # Nếu đồ thị vô hướng, bạn có thể mở comment dòng dưới:
+        # if v in adj: adj[v].append((u, w))
+
+    # 3. KHỞI TẠO CÁC BIẾN CỦA DIJKSTRA
+    INF = 1e18 # Chuẩn Infinity của hệ thống
+    distances = {node: INF for node in nodes}
+    distances[str(start_node)] = 0
+    
+    pq = [(0, str(start_node))] # Hàng đợi ưu tiên (Priority Queue)
+    visited = []
+    step_index = 0
+    
+    # [SNAPSHOT 0]: EVENT INIT
+    _save_snapshot(db, session_id, step_index, graph_id, "init", None, visited, distances, pq, 
+                   f"Khởi tạo hệ thống. Khoảng cách đỉnh bắt đầu ({start_node}) là 0, các đỉnh khác là vô cực.")
+    step_index += 1
+
+    # 4. VÒNG LẶP DIJKSTRA (Thực thi và bắt sự kiện)
+    while pq:
+        current_dist, current_node = heapq.heappop(pq)
+        
+        # Bỏ qua nếu đỉnh đã được chốt (fixed)
+        if current_node in visited:
+            continue
             
-        unvisited_nodes.remove(current_node)
         visited.append(current_node)
         
-        # Cập nhật khoảng cách cho các đỉnh kề
-        for edge in edges:
-            if edge["source"] == current_node and edge["target"] in unvisited_nodes:
-                new_dist = distances[current_node] + edge["weight"]
-                if new_dist < distances[edge["target"]]:
-                    distances[edge["target"]] = new_dist
+        # [SNAPSHOT]: EVENT SELECT
+        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, visited, distances, pq, 
+                       f"Đỉnh {current_node} có khoảng cách nhỏ nhất ({current_dist}). Chọn làm đỉnh hiện tại và chốt khoảng cách.")
+        step_index += 1
         
-        # [LƯU SNAPSHOT CÁC BƯỚC TIẾP THEO]
-        step_order += 1
-        save_snapshot(
-            db=db, 
-            graph_id=graph_id, 
-            step_id=algo_id, 
-            step_data={"distances": distances.copy(), "visited": visited.copy(), "current_node": current_node}, 
-            explanation=f"Đang xét đỉnh {current_node}. Cập nhật lại khoảng cách các đỉnh kề."
-        )
-
-    return {"message": "Đã chạy xong Dijkstra và lưu toàn bộ Snapshot", "total_steps": step_order}
+        # Duyệt các đỉnh kề để dãn cạnh (Relaxation)
+        for neighbor, weight in adj.get(current_node, []):
+            if neighbor in visited:
+                continue
+                
+            new_dist = current_dist + weight
+            
+            if new_dist < distances[neighbor]:
+                distances[neighbor] = new_dist
+                heapq.heappush(pq, (new_dist, neighbor))
+                
+                # [SNAPSHOT]: EVENT RELAX SUCCESS
+                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, visited, distances, pq, 
+                               f"Dãn cạnh thành công. Cập nhật khoảng cách đỉnh {neighbor} thành {new_dist} (đi qua {current_node}).")
+                step_index += 1
+                
+    # 5. [SNAPSHOT CUỐI CÙNG]: EVENT FINISH
+    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, visited, distances, pq, 
+                   "Thuật toán Dijkstra hoàn tất. Đã tìm được đường đi ngắn nhất đến các đỉnh có thể tới.")
+    
+    # Cập nhật tổng số bước vào Session và Commit toàn bộ
+    db_session.total_steps = step_index
+    db.commit()
+    
+    return {"session_id": session_id, "total_steps": step_index}
