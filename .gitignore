@@ -97,3 +97,5 @@ backend/data/
 context.txt
 context-window.txt
 prompt.txt
+backend_algorithms.md
+responses.md
