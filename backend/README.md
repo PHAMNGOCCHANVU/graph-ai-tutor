@@ -44,6 +44,43 @@ Giai thich nhanh:
 - DATABASE_URL: Chuoi ket noi SQL de luu graph va snapshot.
 - CHROMA_PERSIST_DIRECTORY: Thu muc luu vector store cho RAG.
 
+## 3.1) Chay Module 1 (Ingestion -> Chroma)
+
+Tu thu muc backend:
+
+```bash
+python -m scripts.ingest_docs --source ../docs --collection graph_ai_tutor_knowledge
+```
+
+Lenh tren se:
+
+- Doc toan bo file markdown trong docs/.
+- Tach frontmatter + heading de tao chunk co metadata.
+- Embed bang Gemini va upsert vao Chroma.
+
+Lenh hay dung khi can reset collection va test retrieval nhanh:
+
+```bash
+python -m scripts.ingest_docs --source ../docs --collection graph_ai_tutor_knowledge --reset --smoke-check
+```
+
+Mot so tuy chon chinh:
+
+- --chunk-size: kich thuoc chunk fallback (mac dinh 800)
+- --overlap: overlap fallback (mac dinh 120)
+- --batch-size: so chunk moi batch embed/upsert (mac dinh 32)
+- --embedding-model: model embedding Gemini (mac dinh models/text-embedding-004)
+- --chroma-dir: ghi de CHROMA_PERSIST_DIRECTORY tu CLI
+- --record-manager-db-url: db url cho LangChain SQLRecordManager (mac dinh sqlite:///./data/record_manager_cache.sql)
+- --record-manager-namespace: namespace theo collection de theo doi lifecycle index
+- --cleanup: che do cleanup index (none|incremental|full|scoped_full), mac dinh incremental
+- --source-id-key: metadata key lam source id cho cleanup incremental (mac dinh source_path)
+- --cleanup-batch-size: batch size cho pha cleanup record keys (mac dinh 1000)
+- --force-update: bat buoc index lai ngay ca khi hash noi dung khong doi
+- --key-encoder: thuat toan hash cho LangChain index (mac dinh sha256)
+- --top-k: so ket qua top-k cho smoke-check (mac dinh 3)
+- --verbose: bat log chi tiet trong qua trinh ingest
+
 ## 4) Cau truc thu muc backend
 
 ```text

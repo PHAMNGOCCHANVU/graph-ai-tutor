@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graph-ai-tutor.local/contracts/snapshot.schema.json",
+  "title": "AlgorithmSnapshot",
+  "type": "object",
+  "required": [
+    "step_id",
+    "algorithm",
+    "graph",
+    "state"
+  ],
+  "properties": {
+    "step_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "algorithm": {
+      "type": "string"
+    },
+    "graph": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "target"],
+            "properties": {
+              "source": { "type": "string" },
+              "target": { "type": "string" },
+              "weight": { "type": "number" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "current_node": { "type": ["string", "null"] },
+        "visited": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "queue": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "distances": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
