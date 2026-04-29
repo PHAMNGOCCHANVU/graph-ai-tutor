@@ -7,55 +7,62 @@ from app.models import models
 
 router = APIRouter()
 
-# --- SCHEMAS (Chuẩn hóa dữ liệu đầu vào/ra) ---
 class InitRequest(BaseModel):
     graph_id: int
     start_node: str
-    algorithm: str = "Dijkstra" # Mặc định
-
-# --- API ENDPOINTS ---
+    algorithm: str = "Dijkstra" # Giá trị mặc định nếu người dùng không gửi
 
 @router.post("/init")
 def init_algorithm_session(req: InitRequest, db: Session = Depends(get_db)):
-    """
-    [API 1]: Khởi tạo phiên chạy thuật toán (Pre-computation).
-    Backend sẽ chạy 1 mạch từ đầu đến cuối và lưu toàn bộ Snapshot vào Database.
-    """
-    # Gọi hàm thực thi Dijkstra từ service
-    result = service.run_dijkstra_and_capture(db, req.graph_id, req.start_node)
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+    try:
+        # 1. Lấy tên thuật toán và chuyển thành chữ thường để dễ so sánh
+        algo = req.algorithm.lower()
         
-    # Trả về chuẩn Contract: session_id, total_steps, algorithm
-    return {
-        "session_id": result["session_id"],
-        "total_steps": result["total_steps"],
-        "algorithm": req.algorithm
-    }
+        # 2. KHÚC RẼ NHÁNH ĐÃ ĐỦ 5 THUẬT TOÁN
+        if algo == "dijkstra":
+            result = service.run_dijkstra_and_capture(db, req.graph_id, req.start_node)
+        elif algo == "bfs":
+            result = service.run_bfs_and_capture(db, req.graph_id, req.start_node)
+        elif algo == "dfs":
+            result = service.run_dfs_and_capture(db, req.graph_id, req.start_node)
+        elif algo == "prim":
+            result = service.run_prim_and_capture(db, req.graph_id, req.start_node)
+        elif algo == "kruskal":
+            result = service.run_kruskal_and_capture(db, req.graph_id, req.start_node)
+        else:
+            # Nếu người dùng gửi lên 1 thuật toán tào lao không có trong hệ thống
+            raise HTTPException(status_code=400, detail=f"Hệ thống chưa hỗ trợ thuật toán: {req.algorithm}")
+        
+        # 3. Kiểm tra xem quá trình chạy thuật toán có báo lỗi gì không (ví dụ: đỉnh bắt đầu không tồn tại)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+            
+        # 4. Trả về kết quả thành công cho Frontend
+        return {
+            "session_id": result["session_id"],
+            "total_steps": result["total_steps"],
+            "algorithm": req.algorithm
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/step/{session_id}")
-def get_algorithm_step(session_id: str, step_index: int = Query(..., description="Vị trí bước cần lấy (Bắt đầu từ 0)"), db: Session = Depends(get_db)):
-    """
-    [API 2]: Lấy chính xác 1 Snapshot dựa vào session_id và step_index để phục vụ tính năng Next/Back.
-    """
-    # 1. Kiểm tra session có tồn tại không (Nếu không -> 404)
+def get_algorithm_step(session_id: str, step_index: int = Query(...), db: Session = Depends(get_db)):
+    # Phần API lấy Snapshot này được GIỮ NGUYÊN 100%
     session = db.query(models.AlgoSession).filter(models.AlgoSession.session_id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session_id không tồn tại")
         
-    # 2. Kiểm tra step_index có nằm trong phạm vi không (Nếu không -> 404)
     if step_index < 0 or step_index >= session.total_steps:
-        raise HTTPException(status_code=404, detail=f"Step_index ngoài phạm vi. Tổng số bước là {session.total_steps}")
+        raise HTTPException(status_code=404, detail=f"step_index ngoài phạm vi [0, {session.total_steps - 1}]")
         
-    # 3. Truy vấn Snapshot tương ứng
     snapshot = db.query(models.ExecutionState).filter(
         models.ExecutionState.session_id == session_id,
         models.ExecutionState.step_index == step_index
     ).first()
     
     if not snapshot:
-        raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu Snapshot tại bước này")
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi snapshot")
         
     return {
         "session_id": snapshot.session_id,
