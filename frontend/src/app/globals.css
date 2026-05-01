@@ -17,6 +17,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
   /* Đăng ký các màu mới vào Tailwind */
   --color-sorting: var(--visualgo-sorting);
   --color-list: var(--visualgo-list);
@@ -30,6 +31,20 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+.react-flow__controls {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.react-flow__controls-button {
+  background: #1a1a2e; /* Màu nền tối */
+  fill: #ff007a;       /* Màu icon hồng giống tiêu đề DFS của bạn */
+  border-bottom: 1px solid #333;
+}
+
+.react-flow__controls-button:hover {
+  background: #252545;
 }
 
 body {

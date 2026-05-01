@@ -34,31 +34,31 @@ export default function Home() {
           id="dfs"
           title="DFS" 
           bgColor="bg-sorting" // Màu này bạn đã định nghĩa ở Bước 1
-          imageUrl="/window.svg" 
+          imageUrl="/DFS.svg" 
         />
         <AlgorithmCard
           id="bfs" 
           title="BFS" 
           bgColor="bg-list" 
-          imageUrl="/next.svg" 
+          imageUrl="/BFS.svg" 
         />
         <AlgorithmCard
           id="dijkstra" 
           title="Dijkstra" 
           bgColor="bg-graph" 
-          imageUrl="/globe.svg" 
+          imageUrl="/Dijkstra.svg" 
         />
         <AlgorithmCard 
           id="prim"
           title="Prim" 
           bgColor="bg-cyan-500" 
-          imageUrl="/file.svg" 
+          imageUrl="/Prim.svg" 
         />
         <AlgorithmCard
           id="kruskal" 
           title="Kruskal" 
           bgColor="bg-tree" 
-          imageUrl="/file.svg" 
+          imageUrl="/Kruskal.svg" 
         />
       </div>
     </main>
