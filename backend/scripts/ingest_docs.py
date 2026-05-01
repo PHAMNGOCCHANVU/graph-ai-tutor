@@ -76,7 +76,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=32, help="Embedding/upsert batch size")
     parser.add_argument(
         "--embedding-model",
-        default="gemini-embedding-2-preview",
+        default="gemini-embedding-001",
         help="Gemini embedding model name",
     )
     parser.add_argument(

@@ -18,7 +18,7 @@ from app.services.rag_orchestrator import (
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = "gemini-2.0-flash"  # Fast model suitable for real-time explanations
+GEMINI_MODEL = "gemini-2.0-flash-lite"  # Fast model suitable for real-time explanations
 
 
 def _get_gemini_client() -> Client:

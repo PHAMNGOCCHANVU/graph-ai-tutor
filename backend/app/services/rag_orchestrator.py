@@ -15,7 +15,7 @@ load_dotenv()
 
 CHROMA_DIR = os.getenv("CHROMA_PERSIST_DIRECTORY", "./data/chroma")
 COLLECTION_NAME = "graph_ai_tutor_knowledge"
-EMBEDDING_MODEL = "gemini-embedding-2-preview"
+EMBEDDING_MODEL = "gemini-embedding-001"
 
 
 @dataclass
@@ -89,10 +89,10 @@ def retrieve_theory(
     # Build the query text
     query = question or f"Explain the {phase_id or 'current'} step of {algorithm}."
 
-    # Build metadata filter for precise retrieval
+    # Build metadata filter for precise retrieval (ChromaDB requires $and for multiple conditions)
     filter_dict: dict[str, Any] = {"algorithm": algorithm.lower()}
     if phase_id and phase_id != "unknown":
-        filter_dict["phase_id"] = phase_id
+        filter_dict = {"$and": [{"algorithm": algorithm.lower()}, {"phase_id": phase_id}]}
 
     # Search with metadata filter
     docs_with_scores = vector_store.similarity_search_with_score(
@@ -118,11 +118,10 @@ def retrieve_theory(
 
     # Fallback: if no results with filter, retry without phase_id filter
     if not results:
-        fallback_filter = {"algorithm": algorithm.lower()}
         docs_with_scores = vector_store.similarity_search_with_score(
             query=query,
             k=top_k,
-            filter=fallback_filter,
+            filter={"algorithm": algorithm.lower()},
         )
         for doc, score in docs_with_scores:
             meta = doc.metadata or {}
