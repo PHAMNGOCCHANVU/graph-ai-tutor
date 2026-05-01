@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, JSON, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from app.db.session import Base
 
 class User(Base):
@@ -7,34 +8,50 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     learning_progress = Column(JSON, nullable=True)
+    
     conversations = relationship("Conversation", back_populates="user")
+    graphs = relationship("Graph", back_populates="user")
 
 class Graph(Base):
     __tablename__ = 'graphs'
     graph_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     name = Column(String)
-    data_json = Column(JSON) # Lưu {nodes: [], edges: []}
+    data_json = Column(JSON)
     is_template = Column(Boolean, default=False)
+    
+    user = relationship("User", back_populates="graphs")
+    algo_sessions = relationship("AlgoSession", back_populates="graph")
     execution_states = relationship("ExecutionState", back_populates="graph")
 
-class AlgorithmStep(Base):
-    __tablename__ = 'algorithm_steps'
-    algo_step_id = Column(Integer, primary_key=True, index=True)
-    algo_name = Column(String)
-    step_order = Column(Integer)
-    pseudo_code = Column(Text)
-    execution_states = relationship("ExecutionState", back_populates="algo_step")
+class AlgoSession(Base):
+    __tablename__ = 'algo_sessions'
+    session_id = Column(String, primary_key=True, index=True)
+    graph_id = Column(Integer, ForeignKey('graphs.graph_id'), nullable=False, index=True)
+    algo_name = Column(String, nullable=False, default="Dijkstra")
+    start_node = Column(String, nullable=False)
+    total_steps = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    graph = relationship("Graph", back_populates="algo_sessions")
+    execution_states = relationship("ExecutionState", back_populates="algo_session", cascade="all, delete-orphan")
 
 class ExecutionState(Base):
     __tablename__ = 'execution_states'
     state_id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, ForeignKey('algo_sessions.session_id'), nullable=False, index=True)
+    step_index = Column(Integer, nullable=False)
     graph_id = Column(Integer, ForeignKey('graphs.graph_id'))
-    algo_step_id = Column(Integer, ForeignKey('algorithm_steps.algo_step_id'))
-    step_data_json = Column(JSON) # SNAPSHOT: lưu dist[], visited[]...
-    explanation = Column(Text)
+    step_data_json = Column(JSON, nullable=False) 
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
     
+    __table_args__ = (
+        UniqueConstraint('session_id', 'step_index', name='uq_session_step'),
+    )
+
     graph = relationship("Graph", back_populates="execution_states")
-    algo_step = relationship("AlgorithmStep", back_populates="execution_states")
+    algo_session = relationship("AlgoSession", back_populates="execution_states")
     conversations = relationship("Conversation", back_populates="execution_state")
 
 class Conversation(Base):
