@@ -10,9 +10,12 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 
+import time
+
 class SafeGeminiEmbeddings:
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, delay: float = 0.6) -> None:
         self._base = GoogleGenerativeAIEmbeddings(model=model)
+        self._delay = delay  # seconds between individual embed_query calls to stay under 100 req/min
 
     def embed_query(self, text: str) -> list[float]:
         return self._base.embed_query(text)
@@ -20,8 +23,8 @@ class SafeGeminiEmbeddings:
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         vectors: list[list[float]] = []
         for text in texts:
-            # Ensure one embedding vector per non-empty input text.
             vectors.append(self._base.embed_query(text))
+            time.sleep(self._delay)
         return vectors
 
 
