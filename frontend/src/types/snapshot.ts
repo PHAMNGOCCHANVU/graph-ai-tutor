@@ -13,10 +13,14 @@ export interface GraphEdge {
 
 export interface SnapshotState {
   current_node?: string | null;
+  current_edge?: string | null;
   visited?: string[];
   queue?: string[];
   distances?: Record<string, number>;
+  mst_edges?: string[];
+  selected_edges?: string[];
   notes?: string;
+  action_description?: string;
   [key: string]: unknown;
 }
 
@@ -30,4 +34,34 @@ export interface AlgorithmSnapshot {
   };
   state: SnapshotState;
   meta?: Record<string, unknown>;
+}
+
+/**
+ * Response thực tế từ backend GET /api/v1/step/{session_id}
+ * Backend trả về step_data_json dạng flat, không có graph
+ */
+export interface StepResponse {
+  session_id: string;
+  step_index: number;
+  description: string;
+  data: {
+    phase_id: string;
+    current_node: string | null;
+    target_node: string | null;
+    visited: string[];
+    distances: Record<string, number>;
+    queue: string[];
+  };
+}
+
+export interface InitSessionResponse {
+  session_id: string;
+  total_steps: number;
+  algorithm: string;
+}
+
+export interface RagExplanationResponse {
+  explanation: string;
+  session_id: string;
+  step_index: number;
 }

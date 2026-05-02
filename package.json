@@ -1,18 +1,6 @@
 {
-  "dependencies": {
-    "@xyflow/react": "^12.10.2",
-    "axios": "^1.14.0",
-    "cytoscape": "^3.33.1",
-    "cytoscape-dagre": "^2.5.0",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.7.0",
-    "react": "^19.2.5",
-    "react-markdown": "^10.1.0",
-    "reactflow": "^11.11.4",
-    "remark-gfm": "^4.0.1"
-  },
-  "devDependencies": {
-    "@types/cytoscape": "^3.21.9",
-    "@types/cytoscape-dagre": "^2.3.4"
-  }
+  "name": "graph-ai-tutor",
+  "version": "1.0.0",
+  "description": "Graph AI Tutor - Algorithm visualization with RAG explanations",
+  "private": true
 }

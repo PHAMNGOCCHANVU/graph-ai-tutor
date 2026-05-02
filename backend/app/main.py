@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.api import algorithms
 from app.api import rag
 from app.db.session import engine
@@ -8,6 +9,18 @@ from app.models import models
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AGI Algorithm Backend")
+
+# CORS: Cho phép frontend (localhost:3000) gọi API backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Nhúng router API vào hệ thống
 app.include_router(algorithms.router, prefix="/api/v1", tags=["Algorithms"])
