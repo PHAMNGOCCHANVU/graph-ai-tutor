@@ -5,9 +5,26 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v
 
 const apiClient = axios.create({
   baseURL: API_BASE,
-  timeout: 15000,
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+/**
+ * Tạo đồ thị mới từ dữ liệu frontend (dùng cho chức năng vẽ đồ thị).
+ * POST /api/v1/graphs
+ */
+export async function createGraph(
+  name: string,
+  nodes: any[],
+  edges: any[]
+): Promise<{ graph_id: number }> {
+  const { data } = await apiClient.post<{ graph_id: number }>('/graphs', {
+    name,
+    nodes,
+    edges,
+  });
+  return data;
+}
 
 /**
  * Khởi tạo phiên chạy thuật toán.

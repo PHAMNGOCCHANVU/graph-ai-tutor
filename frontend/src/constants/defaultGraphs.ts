@@ -6,17 +6,31 @@
  */
 const formatEdge = (id: string, source: string, target: string, label: string) => {
   const isForward = source < target;
+  const weight = Number(label);
   
   return {
     id,
     source,
     target,
     label,
-    // Gán handle dựa trên chiều của ID để tránh chồng lấp
     sourceHandle: isForward ? 's-top' : 's-bottom',
     targetHandle: isForward ? 't-top' : 't-bottom',
-    // Thêm định dạng label để đồng bộ với VisuAlgo
-    data: { label }, 
+    data: { weight, label },
+  };
+};
+
+// Format edge cho thuật toán unweighted (DFS, BFS) — không hiển thị weight
+const formatEdgeUnweighted = (id: string, source: string, target: string) => {
+  const isForward = source < target;
+  
+  return {
+    id,
+    source,
+    target,
+    label: "", // Ẩn label weight
+    sourceHandle: isForward ? 's-top' : 's-bottom',
+    targetHandle: isForward ? 't-top' : 't-bottom',
+    data: { weight: 1, label: "" }, // weight = 1 cho unweighted graph
   };
 };
 
@@ -29,11 +43,10 @@ export const DEFAULT_GRAPHS: Record<string, any> = {
       { id: "D", position: { x: 500, y: 150 }, data: { label: "D" }, type: 'circle' },
     ],
     edges: [
-      // Với DFS, chúng ta dùng formatEdge để đảm bảo nếu sau này bạn thêm cạnh ngược, nó sẽ không đè nhau
-      formatEdge("eA-B", "A", "B", "5"),
-      formatEdge("eA-C", "A", "C", "2"),
-      formatEdge("eB-D", "B", "D", "4"),
-      formatEdge("eC-D", "C", "D", "7"),
+      formatEdgeUnweighted("eA-B", "A", "B"),
+      formatEdgeUnweighted("eA-C", "A", "C"),
+      formatEdgeUnweighted("eB-D", "B", "D"),
+      formatEdgeUnweighted("eC-D", "C", "D"),
     ],
   },
   
@@ -47,11 +60,11 @@ export const DEFAULT_GRAPHS: Record<string, any> = {
       { id: "5", position: { x: 120, y: 150 }, data: { label: "5" }, type: 'circle' },
     ],
     edges: [
-      formatEdge("e0-5", "0", "5", "4"), 
-      formatEdge("e0-1", "0", "1", "2"), 
-      formatEdge("e1-3", "1", "3", "9"), 
-      formatEdge("e3-4", "3", "4", "1"), 
-      formatEdge("e3-2", "3", "2", "5"), 
+      formatEdgeUnweighted("e0-5", "0", "5"),
+      formatEdgeUnweighted("e0-1", "0", "1"),
+      formatEdgeUnweighted("e1-3", "1", "3"),
+      formatEdgeUnweighted("e3-4", "3", "4"),
+      formatEdgeUnweighted("e3-2", "3", "2"),
     ],
   },
 

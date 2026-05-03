@@ -1,8 +1,23 @@
 // src/app/page.tsx
+"use client";
+import { useState } from "react";
 import AlgorithmCard from "../components/AlgorithmCard";
-//<AlgorithmCard id="dfs" title="DFS" bgColor="bg-green-500" imageUrl="/window.svg" />
+
+const ALGORITHMS = [
+  { id: "dfs", title: "DFS", bgColor: "bg-sorting", imageUrl: "/DFS.svg" },
+  { id: "bfs", title: "BFS", bgColor: "bg-list", imageUrl: "/BFS.svg" },
+  { id: "dijkstra", title: "Dijkstra", bgColor: "bg-graph", imageUrl: "/Dijkstra.svg" },
+  { id: "prim", title: "Prim", bgColor: "bg-cyan-500", imageUrl: "/Prim.svg" },
+  { id: "kruskal", title: "Kruskal", bgColor: "bg-tree", imageUrl: "/Kruskal.svg" },
+];
 
 export default function Home() {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredAlgorithms = ALGORITHMS.filter((algo) =>
+    algo.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <main className="min-h-screen bg-slate-900 p-10">
       {/* Header mô phỏng VisuAlgo */}
@@ -16,50 +31,37 @@ export default function Home() {
       </header>
 
       <div className="flex justify-center mb-12">
-  <div className="relative w-full max-w-md">
-    <input 
-      type="text" 
-      placeholder="Tìm kiếm thuật toán..." 
-      className="w-full px-5 py-3 rounded-full border border-slate-700 bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 shadow-inner placeholder:text-slate-500"
-    />
-    <div className="absolute right-4 top-3 text-gray-400">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    </div>
-  </div>
-</div>
+        <div className="relative w-full max-w-md">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm kiếm thuật toán..."
+            className="w-full px-5 py-3 rounded-full border border-slate-700 bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 shadow-inner placeholder:text-slate-500"
+          />
+          <div className="absolute right-4 top-3 text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+        </div>
+      </div>
 
       {/* Grid chứa các thẻ thuật toán */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
-        <AlgorithmCard
-          id="dfs"
-          title="DFS" 
-          bgColor="bg-sorting" // Màu này bạn đã định nghĩa ở Bước 1
-          imageUrl="/DFS.svg" 
-        />
-        <AlgorithmCard
-          id="bfs" 
-          title="BFS" 
-          bgColor="bg-list" 
-          imageUrl="/BFS.svg" 
-        />
-        <AlgorithmCard
-          id="dijkstra" 
-          title="Dijkstra" 
-          bgColor="bg-graph" 
-          imageUrl="/Dijkstra.svg" 
-        />
-        <AlgorithmCard 
-          id="prim"
-          title="Prim" 
-          bgColor="bg-cyan-500" 
-          imageUrl="/Prim.svg" 
-        />
-        <AlgorithmCard
-          id="kruskal" 
-          title="Kruskal" 
-          bgColor="bg-tree" 
-          imageUrl="/Kruskal.svg" 
-        />
+        {filteredAlgorithms.length > 0 ? (
+          filteredAlgorithms.map((algo) => (
+            <AlgorithmCard
+              key={algo.id}
+              id={algo.id}
+              title={algo.title}
+              bgColor={algo.bgColor}
+              imageUrl={algo.imageUrl}
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center text-slate-500 py-20">
+            Không tìm thấy thuật toán "{searchQuery}"
+          </div>
+        )}
       </div>
     </main>
   );

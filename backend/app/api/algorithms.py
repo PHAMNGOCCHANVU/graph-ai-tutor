@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from typing import Any
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.services import algorithms as service
@@ -10,7 +11,28 @@ router = APIRouter()
 class InitRequest(BaseModel):
     graph_id: int
     start_node: str
-    algorithm: str = "Dijkstra" # Giá trị mặc định nếu người dùng không gửi
+    algorithm: str = "Dijkstra"
+
+class GraphCreateRequest(BaseModel):
+    name: str
+    nodes: list[dict[str, Any]]
+    edges: list[dict[str, Any]]
+
+@router.post("/graphs")
+def create_graph(req: GraphCreateRequest, db: Session = Depends(get_db)):
+    """Tạo đồ thị mới từ dữ liệu frontend gửi lên (dùng cho chức năng vẽ đồ thị)."""
+    try:
+        graph = models.Graph(
+            name=req.name,
+            data_json={"nodes": req.nodes, "edges": req.edges},
+            is_template=False
+        )
+        db.add(graph)
+        db.commit()
+        db.refresh(graph)
+        return {"graph_id": graph.graph_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/init")
 def init_algorithm_session(req: InitRequest, db: Session = Depends(get_db)):

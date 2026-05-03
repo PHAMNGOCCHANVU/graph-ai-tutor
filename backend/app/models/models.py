@@ -54,6 +54,18 @@ class ExecutionState(Base):
     algo_session = relationship("AlgoSession", back_populates="execution_states")
     conversations = relationship("Conversation", back_populates="execution_state")
 
+class AiExplanation(Base):
+    __tablename__ = 'ai_explanations'
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, ForeignKey('algo_sessions.session_id'), nullable=False, index=True)
+    step_index = Column(Integer, nullable=False)
+    explanation_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('session_id', 'step_index', name='uq_explanation_step'),
+    )
+
 class Conversation(Base):
     __tablename__ = 'conversations'
     id = Column(Integer, primary_key=True, index=True)

@@ -154,24 +154,35 @@ export default function GraphCanvas({ data, setData, snapshotState, readOnly = f
         }
       }
 
-      // Xác định màu edge dựa trên snapshot
+      // Xác định màu edge dựa trên snapshot (chuẩn hóa)
       let edgeColor = '#64748b';
       let animated = false;
 
       if (snapshotState) {
-        // Edge từ current_node đến đích
-        if (snapshotState.current_node && 
+        // Tạo edge ID theo format "source-target" để so sánh với backend
+        const edgeId = `${e.source}-${e.target}`;
+        const reverseEdgeId = `${e.target}-${e.source}`;
+
+        // Ưu tiên 1: final_path_edges (kết quả cuối) — màu xanh lá
+        if (snapshotState.final_path_edges?.includes(edgeId) || 
+            snapshotState.final_path_edges?.includes(reverseEdgeId)) {
+          edgeColor = '#22c55e';
+          animated = false;
+        }
+        // Ưu tiên 2: traversed_edges (cạnh đã đi qua) — màu xanh dương
+        else if (snapshotState.traversed_edges?.includes(edgeId) || 
+                 snapshotState.traversed_edges?.includes(reverseEdgeId)) {
+          edgeColor = '#3b82f6';
+          animated = true;
+        }
+        // Ưu tiên 3: Edge từ current_node — màu hồng
+        else if (snapshotState.current_node && 
             (e.source === snapshotState.current_node || e.target === snapshotState.current_node)) {
           edgeColor = '#db2777';
           animated = true;
         }
-        // Edge trong MST (cho Prim/Kruskal)
-        if (snapshotState.mst_edges?.includes(e.id)) {
-          edgeColor = '#22c55e';
-          animated = false;
-        }
-        // Selected edges
-        if (snapshotState.selected_edges?.includes(e.id)) {
+        // Ưu tiên 4: selected_edges — màu vàng
+        else if (snapshotState.selected_edges?.includes(e.id)) {
           edgeColor = '#f59e0b';
           animated = true;
         }

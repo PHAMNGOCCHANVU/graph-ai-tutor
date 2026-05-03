@@ -12,6 +12,8 @@ interface StepData {
     visited: string[];
     distances: Record<string, number>;
     queue: string[];
+    traversed_edges?: string[];
+    final_path_edges?: string[];
   };
 }
 
@@ -27,6 +29,7 @@ interface AlgorithmState {
 
   // UI state
   isPlaying: boolean;
+  isLoadingStep: boolean; // Đang fetch step (chờ trước khi next)
   speed: number;
   isLoading: boolean;
   error: string | null;
@@ -50,6 +53,7 @@ export const useAlgorithmStore = create<AlgorithmState>((set, get) => ({
   currentStepIndex: 0,
   steps: [],
   isPlaying: false,
+  isLoadingStep: false,
   speed: 1,
   isLoading: false,
   error: null,
@@ -84,7 +88,7 @@ export const useAlgorithmStore = create<AlgorithmState>((set, get) => ({
     // Nếu step đã có trong cache, không fetch lại
     if (steps.some((s) => s.step_index === stepIndex)) return;
 
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, isLoadingStep: true, error: null });
     try {
       const response: StepResponse = await getStep(sessionId, stepIndex);
       const stepData: StepData = {
@@ -95,10 +99,11 @@ export const useAlgorithmStore = create<AlgorithmState>((set, get) => ({
       set((state) => ({
         steps: [...state.steps, stepData],
         isLoading: false,
+        isLoadingStep: false,
       }));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Không thể lấy dữ liệu bước';
-      set({ isLoading: false, error: message });
+      set({ isLoading: false, isLoadingStep: false, error: message });
     }
   },
 
@@ -113,7 +118,9 @@ export const useAlgorithmStore = create<AlgorithmState>((set, get) => ({
   },
 
   nextStep: () => {
-    const { currentStepIndex, totalSteps, goToStep } = get();
+    const { currentStepIndex, totalSteps, goToStep, isLoadingStep } = get();
+    // Không next nếu đang fetch step
+    if (isLoadingStep) return;
     if (currentStepIndex < totalSteps - 1) {
       goToStep(currentStepIndex + 1);
     } else {
@@ -123,7 +130,8 @@ export const useAlgorithmStore = create<AlgorithmState>((set, get) => ({
   },
 
   prevStep: () => {
-    const { currentStepIndex, goToStep } = get();
+    const { currentStepIndex, goToStep, isLoadingStep } = get();
+    if (isLoadingStep) return;
     if (currentStepIndex > 0) {
       goToStep(currentStepIndex - 1);
     }
@@ -151,6 +159,7 @@ export const useAlgorithmStore = create<AlgorithmState>((set, get) => ({
       currentStepIndex: 0,
       steps: [],
       isPlaying: false,
+      isLoadingStep: false,
       speed: 1,
       isLoading: false,
       error: null,

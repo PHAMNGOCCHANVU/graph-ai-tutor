@@ -9,17 +9,20 @@ def get_graph(db: Session, graph_id: int):
 
 def _save_snapshot(db: Session, session_id: str, step_index: int, graph_id: int, 
                    phase_id: str, current_node: str, target_node: str, visited: list, 
-                   distances: dict, pq: list, description: str):
-    # Hàm này gánh còng lưng cả 5 thuật toán, format hàng đợi chuẩn "dist:node"
-    queue_state = [f"{dist}:{node}" for dist, node in pq]
+                   distances: dict, pq: list, description: str,
+                   traversed_edges: list = None, final_path_edges: list = None):
+    """Lưu snapshot với traversed_edges và final_path_edges chuẩn hóa."""
+    queue_state = [f"{dist}:{node}" for dist, node in pq] if pq else []
     
     step_data = {
         "phase_id": phase_id,
         "current_node": current_node,
         "target_node": target_node,
-        "visited": visited.copy(),
-        "distances": distances.copy(),
-        "queue": queue_state
+        "visited": visited.copy() if visited else [],
+        "distances": distances.copy() if distances else {},
+        "queue": queue_state,
+        "traversed_edges": traversed_edges.copy() if traversed_edges else [],
+        "final_path_edges": final_path_edges.copy() if final_path_edges else [],
     }
     
     new_state = models.ExecutionState(
@@ -60,9 +63,12 @@ def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
     distances[str(start_node)] = 0
     pq = [(0, str(start_node))]
     visited = []
+    traversed_edges = []
+    parent = {node: None for node in nodes}  # Truy vết đường đi
     step_index = 0
     
-    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, pq, f"Khởi tạo hệ thống với start_node = {start_node}")
+    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, pq, 
+                   f"Khởi tạo hệ thống với start_node = {start_node}", traversed_edges)
     step_index += 1
 
     while pq:
@@ -70,7 +76,8 @@ def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
         if current_node in visited: continue
         visited.append(current_node)
         
-        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, pq, f"Chọn đỉnh {current_node} có khoảng cách nhỏ nhất ({current_dist})")
+        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, pq, 
+                       f"Chọn đỉnh {current_node} có khoảng cách nhỏ nhất ({current_dist})", traversed_edges)
         step_index += 1
         
         for neighbor, weight in adj.get(current_node, []):
@@ -78,11 +85,28 @@ def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
             new_dist = current_dist + weight
             if new_dist < distances[neighbor]:
                 distances[neighbor] = new_dist
+                parent[neighbor] = current_node
                 heapq.heappush(pq, (new_dist, neighbor))
-                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, pq, f"Cập nhật khoảng cách đỉnh {neighbor} thành {new_dist}")
+                edge_id = f"{current_node}-{neighbor}"
+                if edge_id not in traversed_edges:
+                    traversed_edges.append(edge_id)
+                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, pq, 
+                               f"Cập nhật khoảng cách đỉnh {neighbor} thành {new_dist}", traversed_edges)
                 step_index += 1
                 
-    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, pq, "Thuật toán hoàn tất")
+    # Tính final_path_edges: đường đi ngắn nhất từ start đến mỗi node
+    final_path_edges = []
+    for node in nodes:
+        if node != str(start_node) and distances[node] < INF:
+            curr = node
+            while parent[curr] is not None:
+                edge = f"{parent[curr]}-{curr}"
+                if edge not in final_path_edges:
+                    final_path_edges.append(edge)
+                curr = parent[curr]
+    
+    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, pq, 
+                   "Thuật toán hoàn tất", traversed_edges, final_path_edges)
     db_session.total_steps = step_index + 1
     db.commit()
     return {"session_id": session_id, "total_steps": step_index + 1}
@@ -107,13 +131,16 @@ def run_bfs_and_capture(db: Session, graph_id: int, start_node: str):
         if u in adj: adj[u].append(v)
 
     INF = 1e18
-    distances = {node: INF for node in nodes} # Dùng distances lưu chiều sâu
+    distances = {node: INF for node in nodes}
     distances[str(start_node)] = 0
     queue = deque([(0, str(start_node))])
     visited = []
+    traversed_edges = []
+    parent = {node: None for node in nodes}
     step_index = 0
 
-    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, list(queue), f"Khởi tạo BFS từ đỉnh {start_node}")
+    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, list(queue), 
+                   f"Khởi tạo BFS từ đỉnh {start_node}", traversed_edges)
     step_index += 1
 
     while queue:
@@ -121,17 +148,35 @@ def run_bfs_and_capture(db: Session, graph_id: int, start_node: str):
         if current_node in visited: continue
         visited.append(current_node)
 
-        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, list(queue), f"Duyệt đỉnh {current_node} ở mức {current_depth}")
+        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, list(queue), 
+                       f"Duyệt đỉnh {current_node} ở mức {current_depth}", traversed_edges)
         step_index += 1
 
         for neighbor in adj.get(current_node, []):
             if distances[neighbor] == INF:
                 distances[neighbor] = current_depth + 1
+                parent[neighbor] = current_node
                 queue.append((distances[neighbor], neighbor))
-                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, list(queue), f"Đưa đỉnh {neighbor} vào hàng đợi")
+                edge_id = f"{current_node}-{neighbor}"
+                if edge_id not in traversed_edges:
+                    traversed_edges.append(edge_id)
+                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, list(queue), 
+                               f"Đưa đỉnh {neighbor} vào hàng đợi", traversed_edges)
                 step_index += 1
 
-    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, list(queue), "Hoàn tất BFS")
+    # Tính final_path_edges
+    final_path_edges = []
+    for node in nodes:
+        if node != str(start_node) and distances[node] < INF:
+            curr = node
+            while parent[curr] is not None:
+                edge = f"{parent[curr]}-{curr}"
+                if edge not in final_path_edges:
+                    final_path_edges.append(edge)
+                curr = parent[curr]
+
+    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, list(queue), 
+                   "Hoàn tất BFS", traversed_edges, final_path_edges)
     db_session.total_steps = step_index + 1
     db.commit()
     return {"session_id": session_id, "total_steps": step_index + 1}
@@ -160,9 +205,12 @@ def run_dfs_and_capture(db: Session, graph_id: int, start_node: str):
     distances[str(start_node)] = 0
     stack = [(0, str(start_node))]
     visited = []
+    traversed_edges = []
+    parent = {node: None for node in nodes}
     step_index = 0
 
-    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, stack, f"Khởi tạo DFS từ đỉnh {start_node}")
+    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, stack, 
+                   f"Khởi tạo DFS từ đỉnh {start_node}", traversed_edges)
     step_index += 1
 
     while stack:
@@ -170,17 +218,35 @@ def run_dfs_and_capture(db: Session, graph_id: int, start_node: str):
         if current_node in visited: continue
         visited.append(current_node)
 
-        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, stack, f"Duyệt sâu vào đỉnh {current_node}")
+        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, stack, 
+                       f"Duyệt sâu vào đỉnh {current_node}", traversed_edges)
         step_index += 1
 
         for neighbor in reversed(adj.get(current_node, [])):
             if neighbor not in visited:
                 distances[neighbor] = current_depth + 1
+                parent[neighbor] = current_node
                 stack.append((distances[neighbor], neighbor))
-                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, stack, f"Thêm {neighbor} vào ngăn xếp")
+                edge_id = f"{current_node}-{neighbor}"
+                if edge_id not in traversed_edges:
+                    traversed_edges.append(edge_id)
+                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, stack, 
+                               f"Thêm {neighbor} vào ngăn xếp", traversed_edges)
                 step_index += 1
 
-    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, stack, "Hoàn tất DFS")
+    # Tính final_path_edges
+    final_path_edges = []
+    for node in nodes:
+        if node != str(start_node) and distances[node] < INF:
+            curr = node
+            while parent[curr] is not None:
+                edge = f"{parent[curr]}-{curr}"
+                if edge not in final_path_edges:
+                    final_path_edges.append(edge)
+                curr = parent[curr]
+
+    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, stack, 
+                   "Hoàn tất DFS", traversed_edges, final_path_edges)
     db_session.total_steps = step_index + 1
     db.commit()
     return {"session_id": session_id, "total_steps": step_index + 1}
@@ -199,7 +265,6 @@ def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
     db.add(db_session)
     db.commit()
 
-    # Prim yêu cầu đồ thị vô hướng
     adj = {node: [] for node in nodes}
     for edge in graph.data_json.get("edges", []):
         u, v, w = str(edge["source"]), str(edge["target"]), float(edge["weight"])
@@ -207,13 +272,16 @@ def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
         if v in adj: adj[v].append((u, w)) 
 
     INF = 1e18
-    distances = {node: INF for node in nodes} # Lưu trọng số cạnh nhỏ nhất nối vào MST
+    distances = {node: INF for node in nodes}
     distances[str(start_node)] = 0
     pq = [(0, str(start_node))]
     visited = []
+    traversed_edges = []
+    parent = {node: None for node in nodes}
     step_index = 0
 
-    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, pq, f"Khởi tạo Prim từ đỉnh {start_node}")
+    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited, distances, pq, 
+                   f"Khởi tạo Prim từ đỉnh {start_node}", traversed_edges)
     step_index += 1
 
     while pq:
@@ -221,17 +289,30 @@ def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
         if current_node in visited: continue
         visited.append(current_node)
 
-        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, pq, f"Đưa đỉnh {current_node} vào cây khung MST")
+        # Thêm cạnh từ parent vào MST
+        if parent[current_node] is not None:
+            edge_id = f"{parent[current_node]}-{current_node}"
+            if edge_id not in traversed_edges:
+                traversed_edges.append(edge_id)
+
+        _save_snapshot(db, session_id, step_index, graph_id, "select", current_node, None, visited, distances, pq, 
+                       f"Đưa đỉnh {current_node} vào cây khung MST", traversed_edges)
         step_index += 1
 
         for neighbor, weight in adj.get(current_node, []):
             if neighbor not in visited and weight < distances[neighbor]:
                 distances[neighbor] = weight
+                parent[neighbor] = current_node
                 heapq.heappush(pq, (weight, neighbor))
-                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, pq, f"Phát hiện cạnh nối đến {neighbor} tối ưu hơn (trọng số {weight})")
+                _save_snapshot(db, session_id, step_index, graph_id, "relax_success", current_node, neighbor, visited, distances, pq, 
+                               f"Phát hiện cạnh nối đến {neighbor} tối ưu hơn (trọng số {weight})", traversed_edges)
                 step_index += 1
 
-    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, pq, "Hoàn tất Prim MST")
+    # final_path_edges = MST edges
+    final_path_edges = traversed_edges.copy()
+
+    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited, distances, pq, 
+                   "Hoàn tất Prim MST", traversed_edges, final_path_edges)
     db_session.total_steps = step_index + 1
     db.commit()
     return {"session_id": session_id, "total_steps": step_index + 1}
@@ -240,7 +321,6 @@ def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
 # 5. THUẬT TOÁN KRUSKAL (TÌM CÂY KHUNG NHỎ NHẤT)
 # ==========================================
 def run_kruskal_and_capture(db: Session, graph_id: int, start_node: str):
-    # Kruskal duyệt toàn cục, start_node chỉ để đồng bộ API
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
     nodes = [str(n) for n in graph.data_json.get("nodes", [])]
@@ -253,9 +333,8 @@ def run_kruskal_and_capture(db: Session, graph_id: int, start_node: str):
     edges_list = []
     for edge in graph.data_json.get("edges", []):
         edges_list.append((float(edge["weight"]), str(edge["source"]), str(edge["target"])))
-    edges_list.sort() # Kruskal bắt buộc sắp xếp cạnh theo trọng số tăng dần
+    edges_list.sort()
 
-    # Cấu trúc Disjoint Set Union (DSU) để chống tạo vòng (cycle)
     parent = {node: node for node in nodes}
     def find(i):
         if parent[i] == i: return i
@@ -269,30 +348,37 @@ def run_kruskal_and_capture(db: Session, graph_id: int, start_node: str):
             return True
         return False
 
-    # Ép kiểu danh sách cạnh thành format của _save_snapshot (weight, "u-v")
     pq = [(w, f"{u}-{v}") for w, u, v in edges_list]
-    visited_edges = [] # Lưu các cạnh đã chọn vào MST
+    visited_edges = []
+    traversed_edges = []
     distances = {node: 1e18 for node in nodes}
     step_index = 0
 
-    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited_edges, distances, pq, "Khởi tạo Kruskal, đã sắp xếp toàn bộ cạnh")
+    _save_snapshot(db, session_id, step_index, graph_id, "init", None, None, visited_edges, distances, pq, 
+                   "Khởi tạo Kruskal, đã sắp xếp toàn bộ cạnh", traversed_edges)
     step_index += 1
 
     for weight, u, v in edges_list:
-        _save_snapshot(db, session_id, step_index, graph_id, "select", u, v, visited_edges, distances, pq, f"Xét cạnh {u}-{v} (trọng số {weight})")
+        _save_snapshot(db, session_id, step_index, graph_id, "select", u, v, visited_edges, distances, pq, 
+                       f"Xét cạnh {u}-{v} (trọng số {weight})", traversed_edges)
         step_index += 1
 
-        if union(u, v): # Nếu gộp thành công (không tạo vòng)
+        if union(u, v):
             visited_edges.append(f"{u}-{v}")
-            distances[v] = weight # Ghi nhận trọng số
+            edge_id = f"{u}-{v}"
+            if edge_id not in traversed_edges:
+                traversed_edges.append(edge_id)
+            distances[v] = weight
             distances[u] = weight
-            _save_snapshot(db, session_id, step_index, graph_id, "relax_success", u, v, visited_edges, distances, pq, f"Thêm cạnh {u}-{v} vào MST")
+            _save_snapshot(db, session_id, step_index, graph_id, "relax_success", u, v, visited_edges, distances, pq, 
+                           f"Thêm cạnh {u}-{v} vào MST", traversed_edges)
             step_index += 1
             
-            # Loại bỏ cạnh đã xét ra khỏi danh sách chờ (pq)
             pq = [item for item in pq if item[1] != f"{u}-{v}"]
 
-    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited_edges, distances, pq, "Hoàn tất Kruskal MST")
+    final_path_edges = traversed_edges.copy()
+    _save_snapshot(db, session_id, step_index, graph_id, "finish", None, None, visited_edges, distances, pq, 
+                   "Hoàn tất Kruskal MST", traversed_edges, final_path_edges)
     db_session.total_steps = step_index + 1
     db.commit()
     return {"session_id": session_id, "total_steps": step_index + 1}

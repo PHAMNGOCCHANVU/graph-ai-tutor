@@ -17,6 +17,8 @@ export interface SnapshotState {
   visited?: string[];
   queue?: string[];
   distances?: Record<string, number>;
+  traversed_edges?: string[];    // Các cạnh đã đi qua (tô màu xanh dương)
+  final_path_edges?: string[];   // Kết quả cuối (MST / đường đi ngắn nhất) — tô màu xanh lá
   mst_edges?: string[];
   selected_edges?: string[];
   notes?: string;
