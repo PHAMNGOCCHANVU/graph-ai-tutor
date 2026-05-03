@@ -4,8 +4,7 @@ import os
 from typing import Any
 
 from dotenv import load_dotenv
-from google.genai import Client
-from google.genai.types import GenerateContentConfig
+from openai import OpenAI, APIConnectionError, RateLimitError
 from sqlalchemy.orm import Session
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
@@ -19,59 +18,65 @@ from app.services.rag_orchestrator import (
 
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = "gemini-2.0-flash-lite"
+# OpenRouter configuration
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+GEMINI_MODEL = "google/gemini-pro-1.5"  # OpenRouter model ID for Gemini
 
 
-def _get_gemini_client() -> Client:
-    """Create a Gemini API client."""
-    if not GEMINI_API_KEY:
-        raise RuntimeError("Missing GEMINI_API_KEY. Add it to backend/.env or environment.")
-    return Client(api_key=GEMINI_API_KEY)
+def _get_openrouter_client() -> OpenAI:
+    """Create an OpenRouter client (OpenAI-compatible API)."""
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("Missing OPENROUTER_API_KEY. Add it to backend/.env or environment.")
+    return OpenAI(
+        api_key=OPENROUTER_API_KEY,
+        base_url=OPENROUTER_BASE_URL,
+    )
 
 
 @retry(
     stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type(Exception),
+    wait=wait_exponential(multiplier=2, min=5, max=30),
+    retry=retry_if_exception_type((APIConnectionError, RateLimitError, Exception)),
     reraise=True,
 )
 def call_llm(prompt: str) -> str:
-    """Call Gemini API with retry + exponential backoff."""
-    client = _get_gemini_client()
-    response = client.models.generate_content(
+    """Call OpenRouter Gemini API with retry + exponential backoff (max 30s wait)."""
+    client = _get_openrouter_client()
+    response = client.chat.completions.create(
         model=GEMINI_MODEL,
-        contents=prompt,
-        config=GenerateContentConfig(
-            max_output_tokens=500,
-            temperature=0.7,
-            top_p=0.9,
-        ),
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=500,
     )
-    return response.text if response.text else ""
+    return response.choices[0].message.content if response.choices[0].message.content else ""
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type(Exception),
-    reraise=True,
-)
 def call_llm_stream(prompt: str):
-    """Call Gemini API with streaming + retry + exponential backoff."""
-    client = _get_gemini_client()
-    stream = client.models.generate_content_stream(
+    """Call OpenRouter Gemini API with streaming."""
+    client = _get_openrouter_client()
+    stream = client.chat.completions.create(
         model=GEMINI_MODEL,
-        contents=prompt,
-        config=GenerateContentConfig(
-            max_output_tokens=500,
-            temperature=0.7,
-            top_p=0.9,
-        ),
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=500,
+        stream=True,
     )
     for chunk in stream:
-        if chunk.text:
-            yield chunk.text
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
 
 
 def _get_cached_explanation(session_id: str, step_index: int, db: Session) -> str | None:
@@ -109,7 +114,6 @@ def explain_step(
     # 1. Kiểm tra cache trước
     cached_answer = _get_cached_explanation(session_id, step_index, db)
     if cached_answer:
-        # Vẫn fetch snapshot để lấy metadata
         snapshot = retrieve_snapshot(session_id, step_index, db)
         return {
             "session_id": session_id,
@@ -138,8 +142,33 @@ def explain_step(
     # 4. Build the prompt
     llm_prompt = build_prompt(snapshot, theory_chunks, question)
 
-    # 5. Call Gemini API (với retry)
-    answer = call_llm(llm_prompt)
+    # 5. Call OpenRouter Gemini API (với retry)
+    try:
+        answer = call_llm(llm_prompt)
+    except (APIConnectionError, RateLimitError) as e:
+        return {
+            "session_id": session_id,
+            "step_index": step_index,
+            "algorithm": algorithm,
+            "phase_id": phase_id,
+            "description": snapshot.get("description", ""),
+            "answer": "⚠️ Hệ thống AI đang quá tải hoặc có lỗi kết nối. Trạng thái đồ thị vẫn được cập nhật bình thường.",
+            "theory_chunks": [],
+            "cached": False,
+            "error": str(e)[:200],
+        }
+    except Exception as e:
+        return {
+            "session_id": session_id,
+            "step_index": step_index,
+            "algorithm": algorithm,
+            "phase_id": phase_id,
+            "description": snapshot.get("description", ""),
+            "answer": f"⚠️ Lỗi AI: {str(e)[:200]}",
+            "theory_chunks": [],
+            "cached": False,
+            "error": str(e)[:200],
+        }
 
     # 6. Lưu cache
     if answer:
@@ -177,7 +206,6 @@ def explain_step_stream(
     # 1. Kiểm tra cache trước
     cached_answer = _get_cached_explanation(session_id, step_index, db)
     if cached_answer:
-        # Stream từ cache (yield toàn bộ text như 1 chunk)
         yield cached_answer
         return
 
@@ -197,11 +225,20 @@ def explain_step_stream(
     # 4. Build the prompt
     llm_prompt = build_prompt(snapshot, theory_chunks, question)
 
-    # 5. Stream Gemini response (với retry)
+    # 5. Stream Gemini response (với try/catch để không crash)
     full_text = ""
-    for text_chunk in call_llm_stream(llm_prompt):
-        full_text += text_chunk
-        yield text_chunk
+    try:
+        for text_chunk in call_llm_stream(llm_prompt):
+            full_text += text_chunk
+            yield text_chunk
+    except ClientError as e:
+        fallback = "⚠️ Hệ thống AI đang quá tải. Trạng thái đồ thị vẫn được cập nhật bình thường."
+        yield fallback
+        full_text = fallback
+    except Exception as e:
+        fallback = f"⚠️ Lỗi AI: {str(e)[:200]}"
+        yield fallback
+        full_text = fallback
 
     # 6. Lưu cache
     if full_text:

@@ -28,8 +28,10 @@ export default function RagChatBox({ sessionId, stepIndex, description }: RagCha
   const [inputValue, setInputValue] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStreamText, setCurrentStreamText] = useState('');
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const cooldownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll khi có tin nhắn mới
   useEffect(() => {
@@ -95,30 +97,38 @@ export default function RagChatBox({ sessionId, stepIndex, description }: RagCha
         setCurrentStreamText('');
       });
 
-      eventSource.onerror = () => {
-        eventSource.close();
-        eventSourceRef.current = null;
-        setIsStreaming(false);
-
-        if (!fullText) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'ai',
-              content:
-                'Xin lỗi, tôi không thể kết nối đến dịch vụ giải thích. Vui lòng thử lại sau.',
-            },
-          ]);
-        }
-        setCurrentStreamText('');
-      };
+      eventSource.addEventListener('error', (event: any) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.error) {
+             setMessages((prev) => [...prev, { role: 'ai', content: data.error }]);
+             eventSource.close();
+             setIsStreaming(false);
+          }
+        } catch { }
+      });
     },
     [sessionId]
   );
 
   const handleExplainStep = () => {
-    if (!sessionId || isStreaming) return;
+    if (!sessionId || isStreaming || cooldownSeconds > 0) return;
     if (!isOpen) setIsOpen(true);
+    
+    // Bắt đầu cooldown 4s
+    setCooldownSeconds(4);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current);
+          cooldownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
     fetchExplanation(stepIndex);
   };
 
@@ -144,11 +154,11 @@ export default function RagChatBox({ sessionId, stepIndex, description }: RagCha
         {/* Nút giải thích — góc trên phải canvas */}
         <button
           onClick={handleExplainStep}
-          disabled={!sessionId || isStreaming}
+          disabled={!sessionId || isStreaming || cooldownSeconds > 0}
           className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-pink-600 hover:bg-pink-500 text-white px-4 py-2.5 rounded-full text-xs font-bold shadow-2xl transition-all active:scale-95 disabled:opacity-50"
         >
           <Sparkles size={16} />
-          GIẢI THÍCH BƯỚC {stepIndex}
+          {cooldownSeconds > 0 ? `GIẢI THÍCH (${cooldownSeconds}s...)` : `GIẢI THÍCH BƯỚC ${stepIndex}`}
         </button>
 
         {/* Nút mở chat AI — góc dưới phải màn hình */}
@@ -164,15 +174,15 @@ export default function RagChatBox({ sessionId, stepIndex, description }: RagCha
 
   return (
     <>
-      {/* Nút giải thích — góc trên phải canvas (khi chat mở) */}
-      <button
-        onClick={handleExplainStep}
-        disabled={!sessionId || isStreaming}
-        className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-pink-600 hover:bg-pink-500 text-white px-4 py-2.5 rounded-full text-xs font-bold shadow-2xl transition-all active:scale-95 disabled:opacity-50"
-      >
-        <Sparkles size={16} />
-        GIẢI THÍCH BƯỚC {stepIndex}
-      </button>
+        {/* Nút giải thích — góc trên phải canvas (khi chat mở) */}
+        <button
+          onClick={handleExplainStep}
+          disabled={!sessionId || isStreaming || cooldownSeconds > 0}
+          className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-pink-600 hover:bg-pink-500 text-white px-4 py-2.5 rounded-full text-xs font-bold shadow-2xl transition-all active:scale-95 disabled:opacity-50"
+        >
+          <Sparkles size={16} />
+          {cooldownSeconds > 0 ? `GIẢI THÍCH (${cooldownSeconds}s...)` : `GIẢI THÍCH BƯỚC ${stepIndex}`}
+        </button>
 
       {/* Khung chat floating */}
       <div className="fixed bottom-6 right-6 z-50 w-[380px] h-[520px] bg-slate-800 rounded-2xl border border-slate-700 flex flex-col shadow-2xl overflow-hidden">

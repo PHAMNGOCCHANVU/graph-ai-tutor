@@ -38,12 +38,28 @@ def _save_snapshot(db: Session, session_id: str, step_index: int, graph_id: int,
 # ==========================================
 # 1. THUẬT TOÁN DIJKSTRA
 # ==========================================
+def _get_node_ids(graph_data: dict) -> list[str]:
+    """Extract node IDs from graph data (supports both dict and string formats)."""
+    nodes_raw = graph_data.get("nodes", [])
+    if nodes_raw and isinstance(nodes_raw[0], dict):
+        return [str(n["id"]) for n in nodes_raw]
+    return [str(n) for n in nodes_raw]
+
+def _get_weight(edge: dict, default_weight: float = 1.0) -> float:
+    """Extract weight from edge data (supports both flat and nested data formats)."""
+    if "weight" in edge:
+        return float(edge["weight"])
+    data = edge.get("data", {})
+    if isinstance(data, dict) and "weight" in data:
+        return float(data["weight"])
+    return default_weight
+
 def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
         
     graph_data = graph.data_json
-    nodes = [str(n) for n in graph_data.get("nodes", [])]
+    nodes = _get_node_ids(graph_data)
     edges = graph_data.get("edges", [])
     
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại trong đồ thị"}
@@ -55,7 +71,7 @@ def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
 
     adj = {node: [] for node in nodes}
     for edge in edges:
-        u, v, w = str(edge["source"]), str(edge["target"]), float(edge["weight"])
+        u, v, w = str(edge["source"]), str(edge["target"]), _get_weight(edge)
         if u in adj: adj[u].append((v, w))
 
     INF = 1e18
@@ -117,7 +133,7 @@ def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
 def run_bfs_and_capture(db: Session, graph_id: int, start_node: str):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
-    nodes = [str(n) for n in graph.data_json.get("nodes", [])]
+    nodes = _get_node_ids(graph.data_json)
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại"}
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
@@ -187,7 +203,7 @@ def run_bfs_and_capture(db: Session, graph_id: int, start_node: str):
 def run_dfs_and_capture(db: Session, graph_id: int, start_node: str):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
-    nodes = [str(n) for n in graph.data_json.get("nodes", [])]
+    nodes = _get_node_ids(graph.data_json)
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại"}
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
@@ -257,7 +273,7 @@ def run_dfs_and_capture(db: Session, graph_id: int, start_node: str):
 def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
-    nodes = [str(n) for n in graph.data_json.get("nodes", [])]
+    nodes = _get_node_ids(graph.data_json)
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại"}
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
@@ -267,7 +283,7 @@ def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
 
     adj = {node: [] for node in nodes}
     for edge in graph.data_json.get("edges", []):
-        u, v, w = str(edge["source"]), str(edge["target"]), float(edge["weight"])
+        u, v, w = str(edge["source"]), str(edge["target"]), _get_weight(edge)
         if u in adj: adj[u].append((v, w))
         if v in adj: adj[v].append((u, w)) 
 
@@ -323,7 +339,7 @@ def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
 def run_kruskal_and_capture(db: Session, graph_id: int, start_node: str):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
-    nodes = [str(n) for n in graph.data_json.get("nodes", [])]
+    nodes = _get_node_ids(graph.data_json)
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
     db_session = models.AlgoSession(session_id=session_id, graph_id=graph_id, algo_name="Kruskal", start_node=str(start_node))
@@ -332,7 +348,7 @@ def run_kruskal_and_capture(db: Session, graph_id: int, start_node: str):
 
     edges_list = []
     for edge in graph.data_json.get("edges", []):
-        edges_list.append((float(edge["weight"]), str(edge["source"]), str(edge["target"])))
+        edges_list.append((_get_weight(edge), str(edge["source"]), str(edge["target"])))
     edges_list.sort()
 
     parent = {node: node for node in nodes}

@@ -4,6 +4,7 @@ import json
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from google.genai.errors import ClientError
 from sqlalchemy.orm import Session
 from starlette.responses import StreamingResponse
 
@@ -34,6 +35,8 @@ def explain_algorithm_step(
             question=question,
         )
         return result
+    except ClientError as e:
+        raise HTTPException(status_code=429, detail=f"Gemini API quota exceeded: {str(e)[:200]}")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -60,14 +63,18 @@ async def explain_algorithm_step_stream(
             }
             yield f"event: meta\ndata: {json.dumps(meta, ensure_ascii=False)}\n\n"
 
-            # Stream text chunks from Gemini
-            for text_chunk in explain_step_stream(
-                session_id=session_id,
-                step_index=step_index,
-                db=db,
-                question=question,
-            ):
-                yield f"event: chunk\ndata: {json.dumps({'text': text_chunk}, ensure_ascii=False)}\n\n"
+            # Stream text chunks from Gemini (với try/catch để không crash)
+            try:
+                for text_chunk in explain_step_stream(
+                    session_id=session_id,
+                    step_index=step_index,
+                    db=db,
+                    question=question,
+                ):
+                    yield f"event: chunk\ndata: {json.dumps({'text': text_chunk}, ensure_ascii=False)}\n\n"
+            except Exception as e:
+                error_msg = f"⚠️ Lỗi streaming: {str(e)[:200]}"
+                yield f"event: error\ndata: {json.dumps({'error': error_msg}, ensure_ascii=False)}\n\n"
 
             # Send done event
             yield "event: done\ndata: {}\n\n"
@@ -81,6 +88,8 @@ async def explain_algorithm_step_stream(
                 "X-Accel-Buffering": "no",
             },
         )
+    except ClientError as e:
+        raise HTTPException(status_code=429, detail=f"Gemini API quota exceeded: {str(e)[:200]}")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

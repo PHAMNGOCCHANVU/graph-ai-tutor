@@ -18,12 +18,26 @@ export async function createGraph(
   nodes: any[],
   edges: any[]
 ): Promise<{ graph_id: number }> {
-  const { data } = await apiClient.post<{ graph_id: number }>('/graphs', {
-    name,
-    nodes,
-    edges,
-  });
-  return data;
+  try {
+    const response = await apiClient.post<{ graph_id: number }>('/graphs', {
+      name,
+      nodes,
+      edges,
+    });
+    
+    if (!response.data?.graph_id) {
+      throw new Error('Invalid response: missing graph_id');
+    }
+    
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.detail || error.message;
+      console.error('Failed to create graph:', message);
+      throw new Error(`Graph creation failed: ${message}`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -35,12 +49,26 @@ export async function initSession(
   graphId: number,
   startNode: string
 ): Promise<InitSessionResponse> {
-  const { data } = await apiClient.post<InitSessionResponse>('/init', {
-    graph_id: graphId,
-    start_node: startNode,
-    algorithm,
-  });
-  return data;
+  try {
+    const response = await apiClient.post<InitSessionResponse>('/init', {
+      graph_id: graphId,
+      start_node: startNode,
+      algorithm,
+    });
+    
+    if (!response.data?.session_id) {
+      throw new Error('Invalid response: missing session_id');
+    }
+    
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.detail || error.message;
+      console.error('Failed to initialize session:', message);
+      throw new Error(`Session initialization failed: ${message}`);
+    }
+    throw error;
+  }
 }
 
 /**

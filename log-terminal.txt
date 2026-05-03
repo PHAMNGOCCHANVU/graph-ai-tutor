@@ -1,0 +1,28 @@
+PS D:\graph-ai-tutor\backend> uvicorn app.main:app --reload
+INFO:     Will watch for changes in these directories: ['D:\\graph-ai-tutor\\backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [6928] using WatchFiles
+INFO:     Started server process [9880]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:64295 - "OPTIONS /api/v1/graphs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64295 - "POST /api/v1/graphs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64295 - "OPTIONS /api/v1/init HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64295 - "POST /api/v1/init HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:64295 - "POST /api/v1/graphs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64295 - "POST /api/v1/init HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61500 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61500 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51454 - "POST /api/v1/graphs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51454 - "POST /api/v1/init HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60403 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60403 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51026 - "POST /api/v1/init HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:62603 - "POST /api/v1/init HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51254 - "POST /api/v1/graphs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49806 - "GET /api/v1/step/sess-dc784a11?step_index=1 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9880]
+INFO:     Stopping reloader process [6928]

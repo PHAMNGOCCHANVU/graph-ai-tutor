@@ -13,10 +13,7 @@ app = FastAPI(title="AGI Algorithm Backend")
 # CORS: Cho phép frontend (localhost:3000) gọi API backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=["*"], # Thay thế tạm thời thành wildcard để test luồng
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

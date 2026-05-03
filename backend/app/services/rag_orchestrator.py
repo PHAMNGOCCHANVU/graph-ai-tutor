@@ -6,7 +6,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from sqlalchemy.orm import Session
 
 from app.models import models
@@ -15,7 +15,11 @@ load_dotenv()
 
 CHROMA_DIR = os.getenv("CHROMA_PERSIST_DIRECTORY", "./data/chroma")
 COLLECTION_NAME = "graph_ai_tutor_knowledge"
-EMBEDDING_MODEL = "gemini-embedding-001"
+
+# OpenRouter configuration
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+EMBEDDING_MODEL = "google/gemini-embedding-2-preview"  # OpenRouter model ID
 
 
 @dataclass
@@ -30,8 +34,15 @@ class RetrievedTheory:
 
 
 def _get_chroma_store() -> Chroma:
-    """Create a read-only Chroma vector store for retrieval."""
-    embedder = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL)
+    """Create a read-only Chroma vector store for retrieval using OpenRouter embeddings."""
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("Missing OPENROUTER_API_KEY. Add it to backend/.env or environment.")
+    
+    embedder = OpenAIEmbeddings(
+        model=EMBEDDING_MODEL,
+        api_key=OPENROUTER_API_KEY,
+        base_url=OPENROUTER_BASE_URL,
+    )
     return Chroma(
         collection_name=COLLECTION_NAME,
         embedding_function=embedder,
@@ -89,12 +100,13 @@ def retrieve_theory(
     # Build the query text
     query = question or f"Explain the {phase_id or 'current'} step of {algorithm}."
 
-    # Build metadata filter for precise retrieval (ChromaDB requires $and for multiple conditions)
-    filter_dict: dict[str, Any] = {"algorithm": algorithm.lower()}
+    # Build metadata filter for precise retrieval
+    algo_lower = algorithm.lower()
+    filter_dict: dict[str, Any] = {"algorithm": algo_lower}
     if phase_id and phase_id != "unknown":
-        filter_dict = {"$and": [{"algorithm": algorithm.lower()}, {"phase_id": phase_id}]}
+        filter_dict = {"$and": [{"algorithm": algo_lower}, {"phase_id": phase_id}]}
 
-    # Search with metadata filter
+    # Try 1: Search with metadata filter (algorithm + phase_id)
     docs_with_scores = vector_store.similarity_search_with_score(
         query=query,
         k=top_k,
@@ -116,12 +128,32 @@ def retrieve_theory(
             )
         )
 
-    # Fallback: if no results with filter, retry without phase_id filter
+    # Fallback 1: if no results with filter, retry with algorithm filter only (lowercase)
     if not results:
         docs_with_scores = vector_store.similarity_search_with_score(
             query=query,
             k=top_k,
-            filter={"algorithm": algorithm.lower()},
+            filter={"algorithm": algo_lower},
+        )
+        for doc, score in docs_with_scores:
+            meta = doc.metadata or {}
+            results.append(
+                RetrievedTheory(
+                    chunk_id=meta.get("chunk_id", "unknown"),
+                    content=doc.page_content,
+                    score=float(score),
+                    algorithm=meta.get("algorithm", algorithm),
+                    phase_id=meta.get("phase_id"),
+                    doc_type=meta.get("doc_type", "unknown"),
+                    source_path=meta.get("source_path", "unknown"),
+                )
+            )
+    
+    # Fallback 2: if still no results, retry without any metadata filter
+    if not results:
+        docs_with_scores = vector_store.similarity_search_with_score(
+            query=query,
+            k=top_k,
         )
         for doc, score in docs_with_scores:
             meta = doc.metadata or {}

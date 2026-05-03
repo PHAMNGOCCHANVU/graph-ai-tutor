@@ -55,8 +55,19 @@ export default function AlgorithmDetailPage() {
     try {
       // Bước 1: Tạo graph trên backend
       const { graph_id } = await createGraph(slug, data.nodes, data.edges);
-      // Bước 2: Khởi tạo session với graph_id mới
-      await initSessionAction(slug, graph_id, "A");
+      
+      // Bước 2: Validate start_node tồn tại trong graph
+      const nodeIds = data.nodes.map((n: any) => (typeof n === 'string' ? n : n.id));
+      let startNode = "A";
+      
+      if (!nodeIds.includes("A")) {
+        // Nếu "A" không tồn tại, sử dụng node đầu tiên
+        startNode = nodeIds.length > 0 ? nodeIds[0] : "A";
+        console.warn(`Node "A" không tồn tại. Sử dụng node "${startNode}" thay thế.`);
+      }
+      
+      // Bước 3: Khởi tạo session với start_node hợp lệ
+      await initSessionAction(slug, graph_id, startNode);
     } catch (err) {
       console.error("Failed to run algorithm:", err);
     } finally {

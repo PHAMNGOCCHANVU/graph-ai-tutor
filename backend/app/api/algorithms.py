@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Any
@@ -36,8 +37,10 @@ def create_graph(req: GraphCreateRequest, db: Session = Depends(get_db)):
 
 @router.post("/init")
 def init_algorithm_session(req: InitRequest, db: Session = Depends(get_db)):
+    # ✅ Thêm debug log
+    print(f"📥 Frontend request: graph_id={req.graph_id}, start_node={req.start_node}, algorithm={req.algorithm}")
+    
     try:
-        # 1. Lấy tên thuật toán và chuyển thành chữ thường để dễ so sánh
         algo = req.algorithm.lower()
         
         # 2. KHÚC RẼ NHÁNH ĐÃ ĐỦ 5 THUẬT TOÁN
@@ -57,16 +60,21 @@ def init_algorithm_session(req: InitRequest, db: Session = Depends(get_db)):
         
         # 3. Kiểm tra xem quá trình chạy thuật toán có báo lỗi gì không (ví dụ: đỉnh bắt đầu không tồn tại)
         if "error" in result:
+            print(f"⚠️ Service error: {result['error']}")  # ✅ Log error
             raise HTTPException(status_code=400, detail=result["error"])
             
         # 4. Trả về kết quả thành công cho Frontend
+        print(f"✅ Success: session_id={result['session_id']}")  # ✅ Log success
         return {
             "session_id": result["session_id"],
             "total_steps": result["total_steps"],
             "algorithm": req.algorithm
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 @router.get("/step/{session_id}")
 def get_algorithm_step(session_id: str, step_index: int = Query(...), db: Session = Depends(get_db)):
