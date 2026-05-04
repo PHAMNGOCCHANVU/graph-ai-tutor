@@ -6,7 +6,9 @@ class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
+    hashed_password = Column(String, nullable=False) 
     learning_progress = Column(JSON, nullable=True)
+    
     conversations = relationship("Conversation", back_populates="user")
 
 class Graph(Base):
