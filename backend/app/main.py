@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import algorithms
 from app.api import rag
+from app.api import auth
 from app.db.session import engine
 from app.models import models
 
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 # Nhúng router API vào hệ thống
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(algorithms.router, prefix="/api/v1", tags=["Algorithms"])
 app.include_router(rag.router, prefix="/api/v1")
 

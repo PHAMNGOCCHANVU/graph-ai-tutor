@@ -231,8 +231,8 @@ def explain_step_stream(
         for text_chunk in call_llm_stream(llm_prompt):
             full_text += text_chunk
             yield text_chunk
-    except ClientError as e:
-        fallback = "⚠️ Hệ thống AI đang quá tải. Trạng thái đồ thị vẫn được cập nhật bình thường."
+    except (APIConnectionError, RateLimitError) as e:
+        fallback = "⚠️ Hệ thống AI đang quá tải hoặc có lỗi kết nối. Trạng thái đồ thị vẫn được cập nhật bình thường."
         yield fallback
         full_text = fallback
     except Exception as e:

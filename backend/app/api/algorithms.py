@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.services import algorithms as service
 from app.models import models
+from app.api.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -20,10 +21,15 @@ class GraphCreateRequest(BaseModel):
     edges: list[dict[str, Any]]
 
 @router.post("/graphs")
-def create_graph(req: GraphCreateRequest, db: Session = Depends(get_db)):
+def create_graph(
+    req: GraphCreateRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Tạo đồ thị mới từ dữ liệu frontend gửi lên (dùng cho chức năng vẽ đồ thị)."""
     try:
         graph = models.Graph(
+            user_id=current_user.id,
             name=req.name,
             data_json={"nodes": req.nodes, "edges": req.edges},
             is_template=False
@@ -36,24 +42,35 @@ def create_graph(req: GraphCreateRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/init")
-def init_algorithm_session(req: InitRequest, db: Session = Depends(get_db)):
+def init_algorithm_session(
+    req: InitRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     # ✅ Thêm debug log
-    print(f"📥 Frontend request: graph_id={req.graph_id}, start_node={req.start_node}, algorithm={req.algorithm}")
+    print(f"📥 Frontend request: user_id={current_user.id}, graph_id={req.graph_id}, start_node={req.start_node}, algorithm={req.algorithm}")
     
     try:
+        # Verify user owns the graph
+        graph = db.query(models.Graph).filter(models.Graph.graph_id == req.graph_id).first()
+        if not graph:
+            raise HTTPException(status_code=404, detail="Đồ thị không tồn tại")
+        if graph.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập đồ thị này")
+        
         algo = req.algorithm.lower()
         
         # 2. KHÚC RẼ NHÁNH ĐÃ ĐỦ 5 THUẬT TOÁN
         if algo == "dijkstra":
-            result = service.run_dijkstra_and_capture(db, req.graph_id, req.start_node)
+            result = service.run_dijkstra_and_capture(db, req.graph_id, req.start_node, current_user.id)
         elif algo == "bfs":
-            result = service.run_bfs_and_capture(db, req.graph_id, req.start_node)
+            result = service.run_bfs_and_capture(db, req.graph_id, req.start_node, current_user.id)
         elif algo == "dfs":
-            result = service.run_dfs_and_capture(db, req.graph_id, req.start_node)
+            result = service.run_dfs_and_capture(db, req.graph_id, req.start_node, current_user.id)
         elif algo == "prim":
-            result = service.run_prim_and_capture(db, req.graph_id, req.start_node)
+            result = service.run_prim_and_capture(db, req.graph_id, req.start_node, current_user.id)
         elif algo == "kruskal":
-            result = service.run_kruskal_and_capture(db, req.graph_id, req.start_node)
+            result = service.run_kruskal_and_capture(db, req.graph_id, req.start_node, current_user.id)
         else:
             # Nếu người dùng gửi lên 1 thuật toán tào lao không có trong hệ thống
             raise HTTPException(status_code=400, detail=f"Hệ thống chưa hỗ trợ thuật toán: {req.algorithm}")
@@ -77,11 +94,20 @@ def init_algorithm_session(req: InitRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 @router.get("/step/{session_id}")
-def get_algorithm_step(session_id: str, step_index: int = Query(...), db: Session = Depends(get_db)):
-    # Phần API lấy Snapshot này được GIỮ NGUYÊN 100%
+def get_algorithm_step(
+    session_id: str,
+    step_index: int = Query(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Phần API lấy Snapshot với kiểm tra ownership
     session = db.query(models.AlgoSession).filter(models.AlgoSession.session_id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session_id không tồn tại")
+    
+    # Verify user owns this session
+    if session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập session này")
         
     if step_index < 0 or step_index >= session.total_steps:
         raise HTTPException(status_code=404, detail=f"step_index ngoài phạm vi [0, {session.total_steps - 1}]")

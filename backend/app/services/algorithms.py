@@ -54,7 +54,7 @@ def _get_weight(edge: dict, default_weight: float = 1.0) -> float:
         return float(data["weight"])
     return default_weight
 
-def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
+def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str, user_id: int):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
         
@@ -65,7 +65,7 @@ def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại trong đồ thị"}
         
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
-    db_session = models.AlgoSession(session_id=session_id, graph_id=graph_id, algo_name="Dijkstra", start_node=str(start_node))
+    db_session = models.AlgoSession(session_id=session_id, user_id=user_id, graph_id=graph_id, algo_name="Dijkstra", start_node=str(start_node))
     db.add(db_session)
     db.commit()
 
@@ -130,14 +130,14 @@ def run_dijkstra_and_capture(db: Session, graph_id: int, start_node: str):
 # ==========================================
 # 2. THUẬT TOÁN BFS
 # ==========================================
-def run_bfs_and_capture(db: Session, graph_id: int, start_node: str):
+def run_bfs_and_capture(db: Session, graph_id: int, start_node: str, user_id: int):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
     nodes = _get_node_ids(graph.data_json)
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại"}
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
-    db_session = models.AlgoSession(session_id=session_id, graph_id=graph_id, algo_name="BFS", start_node=str(start_node))
+    db_session = models.AlgoSession(session_id=session_id, user_id=user_id, graph_id=graph_id, algo_name="BFS", start_node=str(start_node))
     db.add(db_session)
     db.commit()
 
@@ -200,14 +200,14 @@ def run_bfs_and_capture(db: Session, graph_id: int, start_node: str):
 # ==========================================
 # 3. THUẬT TOÁN DFS
 # ==========================================
-def run_dfs_and_capture(db: Session, graph_id: int, start_node: str):
+def run_dfs_and_capture(db: Session, graph_id: int, start_node: str, user_id: int):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
     nodes = _get_node_ids(graph.data_json)
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại"}
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
-    db_session = models.AlgoSession(session_id=session_id, graph_id=graph_id, algo_name="DFS", start_node=str(start_node))
+    db_session = models.AlgoSession(session_id=session_id, user_id=user_id, graph_id=graph_id, algo_name="DFS", start_node=str(start_node))
     db.add(db_session)
     db.commit()
 
@@ -270,14 +270,14 @@ def run_dfs_and_capture(db: Session, graph_id: int, start_node: str):
 # ==========================================
 # 4. THUẬT TOÁN PRIM (TÌM CÂY KHUNG NHỎ NHẤT)
 # ==========================================
-def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
+def run_prim_and_capture(db: Session, graph_id: int, start_node: str, user_id: int):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
     nodes = _get_node_ids(graph.data_json)
     if str(start_node) not in nodes: return {"error": "start_node không tồn tại"}
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
-    db_session = models.AlgoSession(session_id=session_id, graph_id=graph_id, algo_name="Prim", start_node=str(start_node))
+    db_session = models.AlgoSession(session_id=session_id, user_id=user_id, graph_id=graph_id, algo_name="Prim", start_node=str(start_node))
     db.add(db_session)
     db.commit()
 
@@ -336,13 +336,13 @@ def run_prim_and_capture(db: Session, graph_id: int, start_node: str):
 # ==========================================
 # 5. THUẬT TOÁN KRUSKAL (TÌM CÂY KHUNG NHỎ NHẤT)
 # ==========================================
-def run_kruskal_and_capture(db: Session, graph_id: int, start_node: str):
+def run_kruskal_and_capture(db: Session, graph_id: int, start_node: str, user_id: int):
     graph = get_graph(db, graph_id)
     if not graph: return {"error": "Không tìm thấy đồ thị"}
     nodes = _get_node_ids(graph.data_json)
 
     session_id = f"sess-{uuid.uuid4().hex[:8]}"
-    db_session = models.AlgoSession(session_id=session_id, graph_id=graph_id, algo_name="Kruskal", start_node=str(start_node))
+    db_session = models.AlgoSession(session_id=session_id, user_id=user_id, graph_id=graph_id, algo_name="Kruskal", start_node=str(start_node))
     db.add(db_session)
     db.commit()
 

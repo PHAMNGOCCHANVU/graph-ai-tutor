@@ -1,5 +1,5 @@
 "use client";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { PencilLine } from "lucide-react";
 import AlgorithmControls from "@/components/AlgorithmControls";
@@ -7,6 +7,7 @@ import { DEFAULT_GRAPHS } from "@/constants/defaultGraphs";
 import GraphCanvas from "@/components/GraphCanvas";
 import RagChatBox from "@/components/RagChatBox";
 import { useAlgorithmStore } from "@/store/algorithmStore";
+import { useUserStore } from "@/store/userStore";
 import { createGraph } from "@/services/api";
 import type { SnapshotState } from "@/types/snapshot";
 
@@ -17,7 +18,23 @@ interface GraphData {
 
 export default function AlgorithmDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
+
+  // Check authentication
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+  }, [mounted, isAuthenticated, router]);
 
   // Local state for graph editing
   const [currentData, setCurrentData] = useState<GraphData>({
@@ -157,6 +174,23 @@ export default function AlgorithmDetailPage() {
       runAlgorithm(data);
     }
   };
+
+  // Guard: Show nothing while checking auth
+  if (!mounted) {
+    return null;
+  }
+
+  // Guard: Redirect if not authenticated (will be handled by useEffect, show loading)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-400 mb-4">Vui lòng đăng nhập để truy cập trang này...</p>
+          <div className="w-10 h-10 border-2 border-slate-600 border-t-pink-500 rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6 flex flex-col gap-4">

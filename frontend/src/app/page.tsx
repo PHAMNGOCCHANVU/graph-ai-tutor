@@ -2,6 +2,7 @@
 "use client";
 import { useState } from "react";
 import AlgorithmCard from "../components/AlgorithmCard";
+import AuthHeader from "@/components/AuthHeader";
 
 const ALGORITHMS = [
   { id: "dfs", title: "DFS", bgColor: "bg-sorting", imageUrl: "/DFS.svg" },
@@ -20,15 +21,22 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-900 p-10">
-      {/* Header mô phỏng VisuAlgo */}
-      <header className="text-center mb-16">
-        <h1 className="text-5xl font-extrabold tracking-[0.2em] text-white">
-          VISUAL<span className="text-pink-500 font-light">ALGORITHM</span>
-        </h1>
-        <p className="text-slate-400 italic mt-4 text-lg">
-          Trực quan hóa thuật toán lý thuyết đồ thị
-        </p>
-      </header>
+      {/* Header với Auth */}
+      <div className="flex justify-between items-center mb-12">
+        <div className="flex-1">
+          <header className="text-center">
+            <h1 className="text-5xl font-extrabold tracking-[0.2em] text-white">
+              VISUAL<span className="text-pink-500 font-light">ALGORITHM</span>
+            </h1>
+            <p className="text-slate-400 italic mt-4 text-lg">
+              Trực quan hóa thuật toán lý thuyết đồ thị
+            </p>
+          </header>
+        </div>
+        <div className="min-w-fit">
+          <AuthHeader />
+        </div>
+      </div>
 
       <div className="flex justify-center mb-12">
         <div className="relative w-full max-w-md">

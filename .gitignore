@@ -96,6 +96,7 @@ data/
 *.onnx
 *.bin
 
+plan.md
 context.txt
 context-window.txt
 prompt.txt

@@ -39,6 +39,12 @@ DATABASE_URL=sqlite:///./data/app.db
 CHROMA_PERSIST_DIRECTORY=./data/chroma
 RECORD_MANAGER_DB_URL=sqlite:///./data/record_manager_cache.sql
 RECORD_MANAGER_NAMESPACE=graph_ai_tutor_knowledge
+
+# JWT Authentication Configuration
+JWT_SECRET_KEY=your-super-secret-key-change-this-in-production-at-least-32-characters-long
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_HOURS=24
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
 ```
 
 Giai thich nhanh:
@@ -48,6 +54,10 @@ Giai thich nhanh:
 - CHROMA_PERSIST_DIRECTORY: Thu muc luu vector store (ChromaDB).
 - RECORD_MANAGER_DB_URL: SQLAlchemy URL cho LangChain SQLRecordManager (theo doi lifecycle index).
 - RECORD_MANAGER_NAMESPACE: Namespace de phan biet cac collection trong indexing lifecycle.
+- JWT_SECRET_KEY: Secret key de ky JWT tokens (nen la 32+ ky tu random, khac nhau giua dev/prod).
+- JWT_ALGORITHM: Thuat toan de ky token (HS256 la du cho production).
+- JWT_ACCESS_TOKEN_EXPIRE_HOURS: Thoi han access token (24 gio).
+- JWT_REFRESH_TOKEN_EXPIRE_DAYS: Thoi han refresh token (30 ngay).
 
 ## 3.1) Chay Module 1 (Ingestion -> Chroma)
 
@@ -178,9 +188,19 @@ Hay kiem tra /docs sau moi thay doi endpoint de dam bao contract Frontend-Backen
 
 ### Cac endpoint chinh:
 
+**Authentication:**
+- `POST /api/v1/auth/register` - Dang ky tai khoan moi (username, email, password)
+- `POST /api/v1/auth/login` - Dang nhap (email, password)
+- `POST /api/v1/auth/refresh` - Lam moi access token (chi can refresh_token)
+- `GET /api/v1/auth/me` - Lay thong tin user hien tai (requires Bearer token)
+- `POST /api/v1/auth/logout` - Dang xuat (client-side token cleanup, server khong luu state)
+
+**Algorithms & Graphs:**
 - `POST /api/v1/graphs` - Tao do thi moi
 - `POST /api/v1/init` - Khoi tao session chay thuat toan
 - `GET /api/v1/step/{session_id}` - Lay snapshot tai step
+
+**RAG Explanation:**
 - `GET /api/v1/rag/explain/{session_id}/stream` - SSE stream RAG explanation (video typing effect)
 - `GET /api/v1/rag/explain/{session_id}` - Non-stream RAG explanation (raw response)
 
