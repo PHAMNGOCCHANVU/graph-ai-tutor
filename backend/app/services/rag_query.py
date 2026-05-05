@@ -21,7 +21,7 @@ load_dotenv()
 # OpenRouter configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-GEMINI_MODEL = "google/gemini-pro-1.5"  # OpenRouter model ID for Gemini
+GEMINI_MODEL = "openai/gpt-3.5-turbo"  # OpenRouter model ID (using GPT-3.5 as fallback)
 
 
 def _get_openrouter_client() -> OpenAI:

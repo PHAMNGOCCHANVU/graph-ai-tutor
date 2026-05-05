@@ -77,7 +77,7 @@ def main() -> None:
     parser.add_argument(
         "--embedding-model",
         default="gemini-embedding-001",
-        help="Gemini embedding model name",
+        help="Google GenAI embedding model name",
     )
     parser.add_argument(
         "--chroma-dir",

@@ -82,9 +82,11 @@ temp/
 *.chroma/
 chroma/
 chroma_db/
+.cache/
 
 # Application-generated local data
 backend/data/
+data/
 
 # ------------------------------
 # Optional large assets
@@ -103,3 +105,8 @@ debug-frontend.md
 detail-plan.md
 log-terminal.txt
 api-debugger.ts
+
+# Sentence-transformers / ONNX model cache (local embeddings)
+.cache/
+~/.cache/
+**/onnx_models/

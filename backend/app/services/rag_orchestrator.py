@@ -6,7 +6,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_core.embeddings import Embeddings
 from sqlalchemy.orm import Session
 
 from app.models import models
@@ -19,7 +19,24 @@ COLLECTION_NAME = "graph_ai_tutor_knowledge"
 # OpenRouter configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-EMBEDDING_MODEL = "google/gemini-embedding-2-preview"  # OpenRouter model ID
+
+
+class DefaultEmbeddings(Embeddings):
+    """Local default embeddings using sentence-transformers (no API needed)."""
+    def __init__(self) -> None:
+        try:
+            from chromadb.utils import embedding_functions
+            self._ef = embedding_functions.DefaultEmbeddingFunction()
+        except ImportError:
+            raise RuntimeError("chromadb embeddings not available")
+
+    def embed_query(self, text: str) -> list[float]:
+        """Embed a single query text."""
+        return self._ef([text])[0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Embed multiple documents."""
+        return self._ef(texts)
 
 
 @dataclass
@@ -34,15 +51,8 @@ class RetrievedTheory:
 
 
 def _get_chroma_store() -> Chroma:
-    """Create a read-only Chroma vector store for retrieval using OpenRouter embeddings."""
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("Missing OPENROUTER_API_KEY. Add it to backend/.env or environment.")
-    
-    embedder = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        api_key=OPENROUTER_API_KEY,
-        base_url=OPENROUTER_BASE_URL,
-    )
+    """Create a read-only Chroma vector store for retrieval using local embeddings."""
+    embedder = DefaultEmbeddings()
     return Chroma(
         collection_name=COLLECTION_NAME,
         embedding_function=embedder,

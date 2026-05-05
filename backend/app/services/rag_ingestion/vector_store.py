@@ -3,29 +3,34 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from dotenv import load_dotenv
 from langchain_classic.indexes import SQLRecordManager, index
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_core.embeddings import Embeddings
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 
 import time
 
-class SafeGeminiEmbeddings:
-    def __init__(self, model: str, delay: float = 0.6) -> None:
-        self._base = GoogleGenerativeAIEmbeddings(model=model)
-        self._delay = delay  # seconds between individual embed_query calls to stay under 100 req/min
+load_dotenv()
+
+class DefaultEmbeddings(Embeddings):
+    """Local default embeddings using sentence-transformers (no API needed)."""
+    def __init__(self) -> None:
+        try:
+            from chromadb.utils import embedding_functions
+            self._ef = embedding_functions.DefaultEmbeddingFunction()
+        except ImportError:
+            raise RuntimeError("chromadb embeddings not available")
 
     def embed_query(self, text: str) -> list[float]:
-        return self._base.embed_query(text)
+        """Embed a single query text."""
+        return self._ef([text])[0]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        vectors: list[list[float]] = []
-        for text in texts:
-            vectors.append(self._base.embed_query(text))
-            time.sleep(self._delay)
-        return vectors
+        """Embed multiple documents."""
+        return self._ef(texts)
 
 
 class IngestionVectorStore:
@@ -39,7 +44,8 @@ class IngestionVectorStore:
     ) -> None:
         self._collection_name = collection_name
         self._chroma_dir = chroma_dir
-        self._embedder = SafeGeminiEmbeddings(model=embedding_model)
+        # Use local embeddings (no API needed)
+        self._embedder = DefaultEmbeddings()
         self._vector_store = Chroma(
             collection_name=collection_name,
             embedding_function=self._embedder,
@@ -137,10 +143,6 @@ class IngestionVectorStore:
 
 
 def validate_environment(chroma_dir: str | None) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("Missing GEMINI_API_KEY. Add it to backend/.env or environment.")
-
     persist_directory = chroma_dir or os.getenv("CHROMA_PERSIST_DIRECTORY")
     if not persist_directory:
         raise RuntimeError(
